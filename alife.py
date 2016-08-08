@@ -52,6 +52,12 @@ class FoodToken:
         self.isEaten = False
 
 
+class Predator:
+    def __init__(self, sim=None, location=None):
+        self.location = location
+        self.sim = sim
+
+
 class Agent:
     def __init__(self, sim=None, location=None, nnet=None, weights=None):
         self.location = location
@@ -86,7 +92,7 @@ class Agent:
         motor_output = self.nnet.activate(self.visual_input)
         return(np.argmax(motor_output))
 
-    def move_agent(self):
+    def move(self):
         if self.cycle_nnet() == 1:
             self.location = [self.location[0] - 1, self.location[1] + 1]
         elif self.cycle_nnet() == 2:
@@ -107,7 +113,7 @@ class Agent:
     def update(self):
         self.update_visual_field()
         self.cycle_nnet()
-        self.move_agent()
+        self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
         else:
@@ -133,14 +139,14 @@ def log_and_output(condition, current_generation, fitness, time_elapsed):
         '{0:.4f}'.format(np.mean(fitness))) + '\n'
     f = open('datalog.txt', 'a')
     f.write(output)
-    f.close
+    f.close()
 
 
 def init_logfiles():
     f = open('datalog.txt', 'w')
     output = 'condition,gen,min,max,avg\n'
     f.write(output)
-    f.close
+    f.close()
 
 
 def run_agent(nnet=None, lifetime=600, weights=None):
