@@ -1,9 +1,11 @@
 from alife import *
+import time
+from joblib import Parallel, delayed
 
 
 def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_size=100, num_cores=None):
-    num_cores = 8
-    init_logfiles()
+    exp = Experiment(num_cores=4)
+    exp.init_logfiles()
     for current_generation in range(num_gens):
         start = time.time()
         if current_generation == 0:
@@ -21,11 +23,10 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
 
 
 def run_mult_experiments(condition=1, num_agents=100, num_gens=250, lifetime=600, env_size=100, num_cores=None):
-    num_cores = 4
-    init_logfiles()
-
-    for exp in range(4):
-        if exp%2 == 0:
+    exp = Experiment(num_cores=4)
+    exp.init_logfiles()
+    for run in range(4):
+        if run%2 == 0:
             condition = 1
             hid_size = 4
             num_units = 76
@@ -36,13 +37,13 @@ def run_mult_experiments(condition=1, num_agents=100, num_gens=250, lifetime=600
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime) for agent in range(num_agents))
             else:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
             sortedagents = sorted(deadagents, key=lambda x: x.eatenTokens, reverse=True)
             fitness = [o.eatenTokens for o in deadagents]
             time_elapsed = time.time() - start
-            log_and_output(condition, current_generation, fitness, time_elapsed)
+            exp.write_log(condition, current_generation, fitness, time_elapsed)
             newagents = []
             for agent in sortedagents[0:20]:
                 for i in range(5):

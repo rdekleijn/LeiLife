@@ -3,13 +3,46 @@ import numpy as np
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, pi
-import time
-import multiprocessing
-from joblib import Parallel, delayed
+from datetime import datetime
+
+class Experiment:
+    def __init__(self, num_cores = 1):
+        self.num_cores = num_cores
+        self.starttime = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        self.logfile = 'output/' + self.starttime + '.txt'
+
+    def init_logfiles(self, filename=None):
+        if filename is None:
+            filename = self.logfile
+        f = open(filename, 'w')
+        output = 'condition,gen,min,max,avg\n'
+        f.write(output)
+        f.close()
+
+    def write_log(self, condition, current_generation, fitness, time_elapsed, filename=None):
+        if filename is None:
+            filename = self.logfile
+        print "Generation", current_generation, \
+            "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
+            '-- Min fitness:', min(fitness), \
+            '-- Max fitness:', max(fitness), \
+            '-- Elapsed time:', str(int(time_elapsed)), 's'
+        output = "Generation " + str(current_generation) + " Mean fitness: " + str(
+            '{0:.4f}'.format(np.mean(fitness))) + "\n"
+        f = open('textlog.txt', 'a')
+        f.write(output)
+        f.close
+        output = str(condition) + ',' + str(current_generation) + ',' + str(min(fitness)) + ',' + str(
+            max(fitness)) + ',' + str(
+            '{0:.4f}'.format(np.mean(fitness))) + '\n'
+        f = open(filename, 'a')
+        f.write(output)
+        f.close()
 
 
 class Environment:
-    def __init__(self, iter=0, size=100):
+    def __init__(self, experiment, iter=0, size=100):
+        self.experiment = experiment
         self.iter = iter
         self.size = size
         self.agents = []
@@ -24,7 +57,7 @@ class Environment:
             if agent.location[1] > self.size: agent.location[1] = self.size
 
     def add_agent(self, location, nnet=None, weights=None):
-        self.agents.append(Agent(sim=self, location=location, nnet=nnet, weights=weights))
+        self.agents.append(Agent(env=self, location=location, nnet=nnet, weights=weights))
 
     def add_foodtoken(self, location):
         self.foodtokens.append(FoodToken(location=location))
@@ -46,25 +79,25 @@ class Environment:
 
 
 class FoodToken:
-    def __init__(self, sim=None, location=None):
+    def __init__(self, env=None, location=None):
         self.location = location
-        self.sim = sim
+        self.env = env
         self.isEaten = False
 
 
 class Predator:
-    def __init__(self, sim=None, location=None):
+    def __init__(self, env=None, location=None):
         self.location = location
-        self.sim = sim
+        self.env = env
 
 
 class Agent:
-    def __init__(self, sim=None, location=None, nnet=None, weights=None):
+    def __init__(self, env=None, location=None, nnet=None, weights=None):
         self.location = location
         self.lifecycle = 0
         self.lifeOver = False
         self.eatenTokens = 0
-        self.sim = sim
+        self.env = env
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         if nnet is None:
@@ -80,7 +113,7 @@ class Agent:
         print('X location = ', self.location[0], '\n', 'Y location =', self.location[1])
 
     def update_visual_field(self):
-        for foodtoken in self.sim.foodtokens:
+        for foodtoken in self.env.foodtokens:
             dx = foodtoken.location[0] - self.location[0]
             dy = foodtoken.location[1] - self.location[1]
             rads = atan2(dy, dx)
@@ -124,36 +157,10 @@ def gen_rand_loc(size):
     return([random.randint(0, size), random.randint(0, size)])
 
 
-def log_and_output(condition, current_generation, fitness, time_elapsed):
-    print "Generation", current_generation, \
-        "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
-        '-- Min fitness:', min(fitness), \
-        '-- Max fitness:', max(fitness), \
-        '-- Elapsed time:', str(int(time_elapsed)), 's'
-    output = "Generation " + str(current_generation) + " Mean fitness: " + str(
-        '{0:.4f}'.format(np.mean(fitness))) + "\n"
-    f = open('textlog.txt', 'a')
-    f.write(output)
-    f.close
-    output = str(condition) + ',' + str(current_generation) + ',' + str(min(fitness)) + ',' + str(max(fitness)) + ',' + str(
-        '{0:.4f}'.format(np.mean(fitness))) + '\n'
-    f = open('datalog.txt', 'a')
-    f.write(output)
-    f.close()
-
-
-def init_logfiles():
-    f = open('datalog.txt', 'w')
-    output = 'condition,gen,min,max,avg\n'
-    f.write(output)
-    f.close()
-
-
-def run_agent(nnet=None, lifetime=600, weights=None):
-    env = Environment(size=50)
+def run_agent(exp, nnet=None, lifetime=600, weights=None):
+    env = Environment(experiment=exp, size=50)
     env.add_foodtoken(location=gen_rand_loc(env.size))
     env.add_agent(location=gen_rand_loc(env.size), nnet=nnet, weights=weights)
     for iter in range(lifetime):
         env.update()
     return (env.agents[0])
-
