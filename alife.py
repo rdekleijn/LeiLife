@@ -4,16 +4,20 @@ from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, pi
 from datetime import datetime
+from ggplot import *
+import pandas as pd
+
 
 class Experiment:
     def __init__(self, num_cores = 1):
         self.num_cores = num_cores
         self.starttime = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        self.logfile = 'output/' + self.starttime + '.txt'
+        self.logfile = 'output/' + self.starttime
 
     def init_logfiles(self, filename=None):
         if filename is None:
             filename = self.logfile
+        filename = filename + '.txt'
         f = open(filename, 'w')
         output = 'condition,gen,min,max,avg\n'
         f.write(output)
@@ -22,6 +26,7 @@ class Experiment:
     def write_log(self, condition, current_generation, fitness, time_elapsed, filename=None):
         if filename is None:
             filename = self.logfile
+        filename = filename + '.txt'
         print "Generation", current_generation, \
             "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
             '-- Min fitness:', min(fitness), \
@@ -38,6 +43,15 @@ class Experiment:
         f = open(filename, 'a')
         f.write(output)
         f.close()
+
+    def plot_results(self, filename=None):
+        if filename is None:
+            filename = self.logfile
+        outfile = filename + '.pdf'
+        filename = filename + '.txt'
+        dataset = pd.read_csv(filename)
+        p = ggplot(aes(x='gen', y='avg'), data=dataset)
+        ggsave(plot=p, filename=outfile)
 
 
 class Environment:
