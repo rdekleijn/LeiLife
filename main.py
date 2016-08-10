@@ -4,4 +4,4 @@ import experiments
 
 #experiments.run_mult_experiments(lifetime=1000, num_cores=2, num_gens=100)
 
-experiments.run_mult_experiments(lifetime=600, num_cores=4, num_gens=30)
+experiments.run_mult_experiments(lifetime=600, num_cores=2, num_gens=150)

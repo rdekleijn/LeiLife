@@ -4,7 +4,7 @@ from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, pi
 from datetime import datetime
-from ggplot import *
+#from ggplot import *
 import pandas as pd
 
 
@@ -34,7 +34,7 @@ class Experiment:
             '-- Elapsed time:', str(int(time_elapsed)), 's'
         output = "Generation " + str(current_generation) + " Mean fitness: " + str(
             '{0:.4f}'.format(np.mean(fitness))) + "\n"
-        f = open('textlog.txt', 'a')
+        f = open('output/textlog.txt', 'a')
         f.write(output)
         f.close
         output = str(condition) + ',' + str(current_generation) + ',' + str(min(fitness)) + ',' + str(

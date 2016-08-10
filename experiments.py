@@ -23,17 +23,21 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
 
 
 def run_mult_experiments(condition=1, num_agents=100, num_gens=250, lifetime=600, env_size=100, num_cores=None):
-    exp = Experiment(num_cores=4)
+    exp = Experiment(num_cores=2)
     exp.init_logfiles()
-    for run in range(4):
-        if run%2 == 0:
+    for run in range(30):
+        if run%3 == 0:
             condition = 1
             hid_size = 4
             num_units = 76
-        else:
+        elif run%3 == 1:
             condition = 2
             hid_size = 8
             num_units = 144
+        else:
+            condition = 2
+            hid_size = 16
+            num_units = 320
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
