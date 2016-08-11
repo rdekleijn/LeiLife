@@ -157,13 +157,13 @@ class Agent:
 
 
 def gen_rand_loc(size):
-    return([random.randint(0, size), random.randint(0, size)])
+    return([random.randint(0, size-1), random.randint(0, size-1)])
 
 
-def run_agent(exp, nnet=None, lifetime=600, weights=None):
-    env = Environment(experiment=exp, size=50)
-    env.add_foodtoken(location=gen_rand_loc(env.size))
-    env.add_agent(location=gen_rand_loc(env.size), nnet=nnet, weights=weights)
+def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None):
+    env = Environment(experiment=exp, size=size)
+    env.add_foodtoken(location=gen_rand_loc(size))
+    env.add_agent(location=gen_rand_loc(size), nnet=nnet, weights=weights)
     for iter in range(lifetime):
         env.update()
     return (env.agents[0])

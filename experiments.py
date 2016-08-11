@@ -22,7 +22,7 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
                 newagents.append(Agent(weights=agent.nnet.params + np.random.normal(0, .3, 144)))
 
 
-def run_mult_experiments(condition=1, num_agents=100, num_gens=250, lifetime=600, env_size=100, num_cores=None):
+def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_cores=None):
     exp = Experiment(num_cores=2)
     exp.init_logfiles()
     for run in range(30):
@@ -41,9 +41,9 @@ def run_mult_experiments(condition=1, num_agents=100, num_gens=250, lifetime=600
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime) for agent in range(num_agents))
             else:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
             sortedagents = sorted(deadagents, key=lambda x: x.eatenTokens, reverse=True)
             fitness = [o.eatenTokens for o in deadagents]
             time_elapsed = time.time() - start
