@@ -4,8 +4,6 @@ from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, pi
 from datetime import datetime
-#from ggplot import *
-import pandas as pd
 
 
 class Experiment:
@@ -43,15 +41,6 @@ class Experiment:
         f = open(filename, 'a')
         f.write(output)
         f.close()
-
-    def plot_results(self, filename=None):
-        if filename is None:
-            filename = self.logfile
-        outfile = filename + '.pdf'
-        filename = filename + '.txt'
-        dataset = pd.read_csv(filename)
-        p = ggplot(aes(x='gen', y='avg'), data=dataset)
-        ggsave(plot=p, filename=outfile)
 
 
 class Environment:
