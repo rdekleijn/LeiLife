@@ -29,21 +29,21 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
         if run%3 == 0:
             condition = 1
             hid_size = 4
-            num_units = 76
+            num_units = 51
         elif run%3 == 1:
             condition = 2
             hid_size = 8
-            num_units = 144
+            num_units = 99
         else:
-            condition = 2
+            condition = 3
             hid_size = 16
-            num_units = 320
+            num_units = 195
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 3), lifetime=lifetime) for agent in range(num_agents))
             else:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 8), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 3), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
             sortedagents = sorted(deadagents, key=lambda x: x.eatenTokens, reverse=True)
             fitness = [o.eatenTokens for o in deadagents]
             time_elapsed = time.time() - start

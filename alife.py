@@ -59,8 +59,8 @@ class Environment:
             if agent.location[0] > self.size: agent.location[0] = self.size
             if agent.location[1] > self.size: agent.location[1] = self.size
 
-    def add_agent(self, location, nnet=None, weights=None):
-        self.agents.append(Agent(env=self, location=location, nnet=nnet, weights=weights))
+    def add_agent(self, location, orientation, nnet=None, weights=None):
+        self.agents.append(Agent(env=self, location=location, orientation=orientation, nnet=nnet, weights=weights))
 
     def add_foodtoken(self, location):
         self.foodtokens.append(FoodToken(location=location))
@@ -70,7 +70,7 @@ class Environment:
             for foodtoken in self.foodtokens:
                 if abs(agent.location[0] - foodtoken.location[0]) < 3 and abs(agent.location[1] - foodtoken.location[1]) < 3:
                     self.foodtokens.remove(foodtoken)
-                    self.add_foodtoken(location=gen_rand_loc(self.size))
+                    self.add_foodtoken(location=gen_rand_location(self.size))
                     agent.eatenTokens += 1
 
     def update(self):
@@ -95,16 +95,17 @@ class Predator:
 
 
 class Agent:
-    def __init__(self, env=None, location=None, nnet=None, weights=None):
+    def __init__(self, env=None, location=None, orientation=None, nnet=None, weights=None):
         self.location = location
+        self.orientation = orientation
         self.lifecycle = 0
         self.lifeOver = False
         self.eatenTokens = 0
         self.env = env
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.motor_output = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.motor_output = [0.0, 0.0, 0.0]
         if nnet is None:
-            self.nnet = buildNetwork(8, 8, 8)
+            self.nnet = buildNetwork(8, 8, 3)
             if weights is not None:
                 self.nnet._setParameters(weights)
         else:
@@ -120,9 +121,9 @@ class Agent:
             dx = foodtoken.location[0] - self.location[0]
             dy = foodtoken.location[1] - self.location[1]
             rads = atan2(dy, dx)
-            rads %= 2 * pi
-            degs = degrees(rads)
-            self.visual_input = one_to_n(degs/360*8, 8) + np.random.normal(0, .2, 8)
+            degs = ((degrees(rads) - 90) * -1)%360
+            degs = (degs - self.orientation)%360
+            self.visual_input = one_to_n(float(degs)/360*8, 8) + np.random.normal(0, .2, 8)
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
@@ -130,21 +131,26 @@ class Agent:
 
     def move(self):
         if self.cycle_nnet() == 1:
-            self.location = [self.location[0] - 1, self.location[1] + 1]
+            self.orientation = (self.orientation - 45)%360
         elif self.cycle_nnet() == 2:
-            self.location = [self.location[0], self.location[1] + 1]
+            if self.orientation == 315:
+                self.location = [self.location[0] - 1, self.location[1] + 1]
+            elif self.orientation == 0:
+                self.location = [self.location[0], self.location[1] + 1]
+            elif self.orientation == 45:
+                self.location = [self.location[0] + 1, self.location[1] + 1]
+            elif self.orientation == 270:
+                self.location = [self.location[0] - 1, self.location[1]]
+            elif self.orientation == 90:
+                self.location = [self.location[0] + 1, self.location[1]]
+            elif self.orientation == 225:
+                self.location = [self.location[0] - 1, self.location[1] - 1]
+            elif self.orientation == 180:
+                self.location = [self.location[0], self.location[1] - 1]
+            elif self.orientation == 135:
+                self.location = [self.location[0] + 1, self.location[1] - 1]
         elif self.cycle_nnet() == 3:
-            self.location = [self.location[0] + 1, self.location[1] + 1]
-        elif self.cycle_nnet() == 4:
-            self.location = [self.location[0] - 1, self.location[1]]
-        elif self.cycle_nnet() == 5:
-            self.location = [self.location[0] + 1, self.location[1]]
-        elif self.cycle_nnet() == 6:
-            self.location = [self.location[0] - 1, self.location[1] - 1]
-        elif self.cycle_nnet() == 7:
-            self.location = [self.location[0], self.location[1] + 1]
-        elif self.cycle_nnet() == 8:
-            self.location = [self.location[0] + 1, self.location[1] + 1]
+            self.orientation = (self.orientation + 45)%360
 
     def update(self):
         self.update_visual_field()
@@ -156,14 +162,18 @@ class Agent:
             self.lifecycle += 1
 
 
-def gen_rand_loc(size):
+def gen_rand_location(size):
     return([random.randint(0, size-1), random.randint(0, size-1)])
+
+
+def gen_rand_orientation():
+    return(random.choice([0, 45, 90, 135, 180, 225, 270, 315]))
 
 
 def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None):
     env = Environment(experiment=exp, size=size)
-    env.add_foodtoken(location=gen_rand_loc(size))
-    env.add_agent(location=gen_rand_loc(size), nnet=nnet, weights=weights)
+    env.add_foodtoken(location=gen_rand_location(size))
+    env.add_agent(location=gen_rand_location(size), orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
     for iter in range(lifetime):
         env.update()
     return (env.agents[0])
