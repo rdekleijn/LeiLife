@@ -2,7 +2,7 @@ import random
 import numpy as np
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
-from math import atan2, degrees, pi
+from math import atan2, degrees, radians, sin, cos, pi
 from datetime import datetime
 
 
@@ -127,34 +127,20 @@ class Agent:
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
-        return(np.argmax(motor_output))
+        return(motor_output)
 
     def move(self):
-        if self.cycle_nnet() == 1:
-            self.orientation = (self.orientation - 45)%360
-        elif self.cycle_nnet() == 2:
-            if self.orientation == 315:
-                self.location = [self.location[0] - 1, self.location[1] + 1]
-            elif self.orientation == 0:
-                self.location = [self.location[0], self.location[1] + 1]
-            elif self.orientation == 45:
-                self.location = [self.location[0] + 1, self.location[1] + 1]
-            elif self.orientation == 270:
-                self.location = [self.location[0] - 1, self.location[1]]
-            elif self.orientation == 90:
-                self.location = [self.location[0] + 1, self.location[1]]
-            elif self.orientation == 225:
-                self.location = [self.location[0] - 1, self.location[1] - 1]
-            elif self.orientation == 180:
-                self.location = [self.location[0], self.location[1] - 1]
-            elif self.orientation == 135:
-                self.location = [self.location[0] + 1, self.location[1] - 1]
-        elif self.cycle_nnet() == 3:
-            self.orientation = (self.orientation + 45)%360
+        motor_output = self.cycle_nnet()
+        if np.argmax(motor_output) == 1:
+            self.orientation = (self.orientation - 45 * motor_output[0])%360
+        elif np.argmax(motor_output) == 2:
+            self.location = [self.location[0] + motor_output[1] * sin(radians(self.orientation)), self.location[1] + motor_output[1] * cos(radians(self.orientation))]
+        elif np.argmax(motor_output) == 3:
+            self.orientation = (self.orientation + 45 * motor_output[2])%360
 
     def update(self):
         self.update_visual_field()
-        self.cycle_nnet()
+        #self.cycle_nnet()
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
@@ -163,11 +149,11 @@ class Agent:
 
 
 def gen_rand_location(size):
-    return([random.randint(0, size-1), random.randint(0, size-1)])
+    return([random.uniform(0, size), random.uniform(0, size)])
 
 
 def gen_rand_orientation():
-    return(random.choice([0, 45, 90, 135, 180, 225, 270, 315]))
+    return(random.uniform(0,360))
 
 
 def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None):

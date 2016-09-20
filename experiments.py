@@ -26,11 +26,11 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
     exp = Experiment(num_cores=2)
     exp.init_logfiles()
     for run in range(30):
-        if run%3 == 0:
+        if run%3 == 1:
             condition = 1
             hid_size = 4
             num_units = 51
-        elif run%3 == 1:
+        elif run%3 == 0:
             condition = 2
             hid_size = 8
             num_units = 99
