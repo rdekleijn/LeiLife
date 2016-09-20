@@ -105,7 +105,7 @@ class Agent:
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0, 0.0]
         if nnet is None:
-            self.nnet = buildNetwork(8, 8, 3)
+            self.nnet = buildNetwork(8, 8, 2)
             if weights is not None:
                 self.nnet._setParameters(weights)
         else:
@@ -130,13 +130,19 @@ class Agent:
         return(motor_output)
 
     def move(self):
+        unitsAxisWidth = 0.2
         motor_output = self.cycle_nnet()
-        if np.argmax(motor_output) == 1:
-            self.orientation = (self.orientation - 45 * motor_output[0])%360
-        elif np.argmax(motor_output) == 2:
-            self.location = [self.location[0] + motor_output[1] * sin(radians(self.orientation)), self.location[1] + motor_output[1] * cos(radians(self.orientation))]
-        elif np.argmax(motor_output) == 3:
-            self.orientation = (self.orientation + 45 * motor_output[2])%360
+        left_act = motor_output[0]
+        right_act = motor_output[1]
+
+        if abs(left_act - right_act) < .0001:
+            self.location = [self.location[0] + left_act * sin(radians(self.orientation)), self.location[1] + right_act * cos(radians(self.orientation))]
+        else:
+            R = unitsAxisWidth * (left_act + right_act) / (2 * (right_act - left_act))
+            wd = (right_act - left_act) / unitsAxisWidth
+            self.location = [self.location[0] + R * cos(radians(wd + self.orientation)) - R * cos(radians(self.orientation)),
+                             self.location[1] - R * sin(radians(wd + self.orientation)) + R * sin(radians(self.orientation))]
+            self.orientation = (self.orientation + wd)%360
 
     def update(self):
         self.update_visual_field()
