@@ -37,7 +37,7 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
         else:
             condition = 3
             hid_size = 16
-            num_units = 184
+            num_units = 170
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
