@@ -2,7 +2,7 @@ import random
 import numpy as np
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
-from math import atan2, degrees, radians, sin, cos, pi
+from math import atan2, degrees, radians, sin, cos, pi, floor, ceil
 from datetime import datetime
 
 
@@ -105,7 +105,7 @@ class Agent:
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0, 0.0]
         if nnet is None:
-            self.nnet = buildNetwork(8, 8, 3)
+            self.nnet = buildNetwork(8, 8, 2)
             if weights is not None:
                 self.nnet._setParameters(weights)
         else:
@@ -123,20 +123,31 @@ class Agent:
             rads = atan2(dy, dx)
             degs = ((degrees(rads) - 90) * -1)%360
             degs = (degs - self.orientation)%360
-            self.visual_input = one_to_n(float(degs)/360*8, 8) + np.random.normal(0, .2, 8)
+            degs_reduced = degs / 45
+            self.visual_input = np.zeros(8)
+            self.visual_input[int(floor(degs_reduced)) % 8] = 1 - (degs_reduced - floor(degs_reduced))
+            if degs_reduced != int(degs_reduced):
+                self.visual_input[int(ceil(degs_reduced)) % 8] = degs_reduced - floor(degs_reduced)
+            self.visual_input = self.visual_input + np.random.normal(0, .1, 8)
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
         return(motor_output)
 
     def move(self):
-        motor_output = self.cycle_nnet()
-        if np.argmax(motor_output) == 1:
-            self.orientation = (self.orientation - 45 * motor_output[0])%360
-        elif np.argmax(motor_output) == 2:
-            self.location = [self.location[0] + motor_output[1] * sin(radians(self.orientation)), self.location[1] + motor_output[1] * cos(radians(self.orientation))]
-        elif np.argmax(motor_output) == 3:
-            self.orientation = (self.orientation + 45 * motor_output[2])%360
+        unitsAxisWidth = 0.2
+        motor_output = np.clip(self.cycle_nnet(), -2, 2)
+        left_act = motor_output[0]
+        right_act = motor_output[1]
+
+        if abs(left_act - right_act) < .0001:
+            self.location = [self.location[0] + left_act * sin(radians(self.orientation)), self.location[1] + right_act * cos(radians(self.orientation))]
+        else:
+            R = unitsAxisWidth * (left_act + right_act) / (2 * (right_act - left_act))
+            wd = (right_act - left_act) / unitsAxisWidth
+            self.location = [self.location[0] + R * cos(radians(wd + self.orientation)) - R * cos(radians(self.orientation)),
+                             self.location[1] - R * sin(radians(wd + self.orientation)) + R * sin(radians(self.orientation))]
+            self.orientation = (self.orientation + wd)%360
 
     def update(self):
         self.update_visual_field()
