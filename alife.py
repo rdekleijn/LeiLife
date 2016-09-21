@@ -2,7 +2,7 @@ import random
 import numpy as np
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
-from math import atan2, degrees, radians, sin, cos, pi
+from math import atan2, degrees, radians, sin, cos, pi, floor, ceil
 from datetime import datetime
 
 
@@ -123,7 +123,12 @@ class Agent:
             rads = atan2(dy, dx)
             degs = ((degrees(rads) - 90) * -1)%360
             degs = (degs - self.orientation)%360
-            self.visual_input = one_to_n(float(degs)/360*8, 8) + np.random.normal(0, .2, 8)
+            degs_reduced = degs / 45
+            self.visual_input = np.zeros(8)
+            self.visual_input[int(floor(degs_reduced)) % 8] = 1 - (degs_reduced - floor(degs_reduced))
+            if degs_reduced != int(degs_reduced):
+                self.visual_input[int(ceil(degs_reduced)) % 8] = degs_reduced - floor(degs_reduced)
+            self.visual_input = self.visual_input + np.random.normal(0, .1, 8)
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
@@ -131,7 +136,7 @@ class Agent:
 
     def move(self):
         unitsAxisWidth = 0.2
-        motor_output = self.cycle_nnet()
+        motor_output = np.clip(self.cycle_nnet(), -2, 2)
         left_act = motor_output[0]
         right_act = motor_output[1]
 
