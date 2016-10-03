@@ -4,3 +4,7 @@
 *.pyc
 
 *.csv
+
+*.history
+
+*.gif
