@@ -241,7 +241,7 @@ def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=Fal
         # The extra_args ensure that the x264 codec is used, so that
         # the video can be embedded in html5.  You may need to adjust this:
         # more info: http://matplotlib.sourceforge.net/api/animation_api.html
-        ani.save('output/'+fname+'_agent_run.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+        ani.save('output/'+fname+'_agent_run.mp4', fps=30, extra_args=['-vcodec', 'libx264', '-pix_fmt', 'yuv420p'])
         #plt.show()
         with open('output/'+fname+'_agent_run.csv', 'wb') as csvfile:
             writer = csv.writer(csvfile) # delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL
