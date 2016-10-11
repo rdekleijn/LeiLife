@@ -1,10 +1,40 @@
 import random
+import csv
 import numpy as np
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, radians, sin, cos, pi, floor, ceil, sqrt
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+fig = plt.figure()
+ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
+                     xlim=(0, 50), ylim=(0, 50))
+ax.grid()
+x = np.arange(0, 50, 0.1)
+#line, = ax.plot(x, x)
+line, = ax.plot([], [], 'o-', lw=2)
+time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
+energy_text = ax.text(0.02, 0.90, '', transform=ax.transAxes)
+
+def init_animation():
+    line.set_data([], [])
+    time_text.set_text('')
+    energy_text.set_text('')
+    return line, time_text, energy_text
+
+def animate(i):
+    global agent_xpos, agent_ypos, food_pos
+    line.set_data(agent_xpos[i], agent_ypos[i])
+    #print agent_xpos[i], agent_ypos[i]
+    #global pendulum, dt
+    #pendulum.step(dt)
+    #line.set_data(*pendulum.position())
+    time_text.set_text('food_x = %.1f' % food_pos[0])
+    energy_text.set_text('food_y = %.1f' % food_pos[1])
+    return line, time_text, energy_text
 
 class Experiment:
     def __init__(self, num_cores = 1):
@@ -82,10 +112,11 @@ class Environment:
 
 
 class FoodToken:
-    def __init__(self, env=None, location=None):
+    def __init__(self, env=None, location=None, value=1):
         self.location = location
         self.env = env
         self.isEaten = False
+        self.value = value
 
 
 class Predator:
@@ -174,10 +205,35 @@ def calc_dir_and_dist(dx, dy, orientation):
     return(degs, dist)
 
 
-def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None):
+def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=False, fname=""):
     env = Environment(experiment=exp, size=size)
     env.add_foodtoken(location=gen_rand_location(size))
     env.add_agent(location=gen_rand_location(size), orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
+    if verbose:
+        global agent_xpos, agent_ypos, food_pos
+        agent_xpos = []
+        agent_ypos = []
+        food_pos = env.foodtokens[0].location
+        lines_to_write = []
     for iter in range(lifetime):
         env.update()
-    return (env.agents[0])
+        if verbose:
+            agent_xpos.append(env.agents[0].location[0])
+            agent_ypos.append(env.agents[0].location[1])
+            lines_to_write.append( env.agents[0].location + env.foodtokens[0].location ) # env.agents[0].orientation too?
+    if verbose:
+        dt = 1./60
+        interval = 1000 * dt #- (t1 - t0)
+        #ani = animation.FuncAnimation(fig, animate, frames=600, interval=interval, blit=False, init_func=init_animation)
+        # To save as an mp4 requires ffmpeg or mencoder to be installed.
+        # The extra_args ensure that the x264 codec is used, so that
+        # the video can be embedded in html5.  You may need to adjust this:
+        # more info: http://matplotlib.sourceforge.net/api/animation_api.html
+        #ani.save('double_pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+        #plt.show()
+        with open('output/'+fname+'_agent_run.csv', 'wb') as csvfile:
+            writer = csv.writer(csvfile) # delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL
+            writer.writerow(['agent_x','agent_y','food_x','food_y'])
+            writer.writerows(lines_to_write)
+
+    return (env.agents[0]) # full agent
