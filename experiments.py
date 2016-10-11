@@ -44,7 +44,7 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
                 deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 2), lifetime=lifetime) for agent in range(num_agents))
             else:
                 deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 2), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
-            sortedagents = sorted(deadagents, key=lambda x: x.eatenTokens, reverse=True)
+            sortedagents = sorted(deadagents, key=lambda x: x.fitness, reverse=True)
 
             if current_generation%save_best_Ngens==0:
                 # now run the best agent again and save/animate the output:
