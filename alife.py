@@ -119,13 +119,15 @@ class Agent:
     def update_visual_field(self):
         for foodtoken in self.env.foodtokens:
             dir, dist = calc_dir_and_dist(foodtoken.location[0] - self.location[0],
-                                          foodtoken.location[1] - self.location[1])
+                                          foodtoken.location[1] - self.location[1],
+                                          self.orientation)
+            prop_dist = dist / sqrt(2 * (self.env.size ** 2))
             dir_reduced = dir / 45
             self.visual_input = np.zeros(8)
             self.visual_input[int(floor(dir_reduced)) % 8] = 1 - (dir_reduced - floor(dir_reduced))
             if dir_reduced != int(dir_reduced):
                 self.visual_input[int(ceil(dir_reduced)) % 8] = dir_reduced - floor(dir_reduced)
-            self.visual_input = self.visual_input + np.random.normal(0, .1, 8)
+            self.visual_input = self.visual_input * (1 - prop_dist) + np.random.normal(0, .1, 8)
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
@@ -164,11 +166,11 @@ def gen_rand_orientation():
     return(random.uniform(0,360))
 
 
-def calc_dir_and_dist(dx, dy):
+def calc_dir_and_dist(dx, dy, orientation):
     rads = atan2(dy, dx)
     degs = ((degrees(rads) - 90) * -1) % 360
-    degs = (degs - self.orientation) % 360
-    dist = sqrt(dx^2 + dy^2)
+    degs = (degs - orientation) % 360
+    dist = sqrt(dx ** 2 + dy ** 2)
     return(degs, dist)
 
 
