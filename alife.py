@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 # fitness function parameters (must tweak in different tasks/environments)
-distance_fitness_factor = .001
+distance_fitness_factor = .0001
 connection_fitness_factor = 0 #.00001
 
 fig = plt.figure()
