@@ -51,9 +51,11 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
                 best_agent = sortedagents[0] # should also save the agent!
                 run_agent(exp, size=50, nnet=best_agent.nnet, lifetime=600, weights=best_agent.nnet.params, verbose=True, fname="best_gen"+str(current_generation))
 
-            fitness = [o.eatenTokens for o in deadagents]
+            fitness = [o.fitness for o in deadagents]
+            eatentokens = [o.eatenTokens for o in deadagents]
+            disttrav = [o.wheelDistanceTraveled for o in deadagents]
             time_elapsed = time.time() - start
-            exp.write_log(condition, current_generation, fitness, time_elapsed)
+            exp.write_log(condition, current_generation, fitness, eatentokens, disttrav, time_elapsed)
             newagents = []
             for agent in sortedagents[0:20]:
                 for i in range(5):

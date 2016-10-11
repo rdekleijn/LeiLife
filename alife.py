@@ -51,14 +51,14 @@ class Experiment:
         f.write(output)
         f.close()
 
-    def write_log(self, condition, current_generation, fitness, time_elapsed, filename=None):
+    def write_log(self, condition, current_generation, fitness, eatentokens, disttrav, time_elapsed, filename=None):
         if filename is None:
             filename = self.logfile
         filename = filename + '.txt'
         print "Generation", current_generation, \
             "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
-            '-- Min fitness:', min(fitness), \
-            '-- Max fitness:', max(fitness), \
+            "-- Mean tokens eaten:", '{0:.4f}'.format(np.mean(eatentokens)), \
+            '-- Mean distance traveled:', '{0:.4f}'.format(np.mean(disttrav)), \
             '-- Elapsed time:', str(int(time_elapsed)), 's'
         output = "Generation " + str(current_generation) + " Mean fitness: " + str(
             '{0:.4f}'.format(np.mean(fitness))) + "\n"
@@ -133,6 +133,7 @@ class Agent:
         self.lifeOver = False
         self.eatenTokens = 0
         self.wheelDistanceTraveled = 0
+        self.fitness = None
         self.env = env
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0, 0.0]
@@ -187,6 +188,7 @@ class Agent:
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
+            self.fitness = self.eatenTokens - (.001 * self.wheelDistanceTraveled)
         else:
             self.lifecycle += 1
 
