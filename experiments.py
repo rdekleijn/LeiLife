@@ -23,7 +23,7 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
 
 
 def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_cores=None, save_best_Ngens=20):
-    exp = Experiment(num_cores=2)
+    exp = Experiment(num_cores=4)
     exp.init_logfiles()
     for run in range(30): # what's this 30?
         if run%3 == 1:
