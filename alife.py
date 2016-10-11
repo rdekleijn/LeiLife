@@ -191,7 +191,7 @@ class Agent:
         if self.lifecycle > 600:
             self.lifeOver = True
             self.fitness = self.eatenTokens - (distance_fitness_factor * self.wheelDistanceTraveled) - \
-                - (connection_fitness_factor * np.sum(abs(self.weights)))
+                - (connection_fitness_factor * np.sum(abs(self.nnet.params)))
         else:
             self.lifecycle += 1
 
