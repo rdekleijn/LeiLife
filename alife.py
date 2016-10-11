@@ -9,21 +9,22 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-fig = plt.figure()
-ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
-                     xlim=(0, 50), ylim=(0, 50))
-ax.grid()
-x = np.arange(0, 50, 0.1)
-#line, = ax.plot(x, x)
-line, = ax.plot([], [], 'o-', lw=2)
-time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
-energy_text = ax.text(0.02, 0.90, '', transform=ax.transAxes)
 
 def init_animation():
+    fig = plt.figure()
+    ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
+                         xlim=(0, 50), ylim=(0, 50))
+    ax.grid()
+    x = np.arange(0, 50, 0.1)
+    # line, = ax.plot(x, x)
+    line, = ax.plot([], [], 'o-', lw=2)
+    time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
+    energy_text = ax.text(0.02, 0.90, '', transform=ax.transAxes)
+
     line.set_data([], [])
     time_text.set_text('')
     energy_text.set_text('')
-    return line, time_text, energy_text
+    return line, time_text, energy_text, fig, ax
 
 def animate(i):
     global agent_xpos, agent_ypos, food_pos
