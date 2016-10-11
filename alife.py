@@ -9,6 +9,10 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+# fitness function parameters (must tweak in different tasks/environments)
+distance_fitness_factor = .001
+connection_fitness_factor = 0 #.00001
+
 fig = plt.figure()
 ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
                      xlim=(0, 50), ylim=(0, 50))
@@ -186,7 +190,8 @@ class Agent:
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
-            self.fitness = self.eatenTokens - (.001 * self.wheelDistanceTraveled)
+            self.fitness = self.eatenTokens - (distance_fitness_factor * self.wheelDistanceTraveled) - \
+                - (connection_fitness_factor * np.sum(abs(self.weights)))
         else:
             self.lifecycle += 1
 
