@@ -14,7 +14,6 @@ ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
                      xlim=(0, 50), ylim=(0, 50))
 ax.grid()
 x = np.arange(0, 50, 0.1)
-# line, = ax.plot(x, x)
 line, = ax.plot([], [], 'o-', lw=2)
 food, = ax.plot([], [], '*r', lw=3)
 time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
@@ -24,7 +23,7 @@ def init_animation():
     line.set_data([], [])
     time_text.set_text('')
     energy_text.set_text('')
-    return line, time_text, energy_text, fig, ax
+    return line, time_text, energy_text
 
 def animate(i):
     global agent_xpos, agent_ypos, food_xpos, food_ypox, tokenCount
@@ -51,14 +50,14 @@ class Experiment:
         f.write(output)
         f.close()
 
-    def write_log(self, condition, current_generation, fitness, time_elapsed, filename=None):
+    def write_log(self, condition, current_generation, fitness, eatentokens, disttrav, time_elapsed, filename=None):
         if filename is None:
             filename = self.logfile
         filename = filename + '.txt'
         print "Generation", current_generation, \
             "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
-            '-- Min fitness:', min(fitness), \
-            '-- Max fitness:', max(fitness), \
+            "-- Mean tokens eaten:", '{0:.4f}'.format(np.mean(eatentokens)), \
+            '-- Mean distance traveled:', '{0:.4f}'.format(np.mean(disttrav)), \
             '-- Elapsed time:', str(int(time_elapsed)), 's'
         output = "Generation " + str(current_generation) + " Mean fitness: " + str(
             '{0:.4f}'.format(np.mean(fitness))) + "\n"
@@ -132,6 +131,8 @@ class Agent:
         self.lifecycle = 0
         self.lifeOver = False
         self.eatenTokens = 0
+        self.wheelDistanceTraveled = 0
+        self.fitness = None
         self.env = env
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0]
@@ -169,6 +170,7 @@ class Agent:
         self.motor_output = np.clip(self.cycle_nnet(), -2, 2)
         left_act = self.motor_output[0]
         right_act = self.motor_output[1]
+        self.wheelDistanceTraveled += abs(left_act) + abs(right_act)
 
         if abs(left_act - right_act) < .0001:
             self.location = [self.location[0] + left_act * sin(radians(self.orientation)), self.location[1] + right_act * cos(radians(self.orientation))]
@@ -184,6 +186,7 @@ class Agent:
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
+            self.fitness = self.eatenTokens - (.001 * self.wheelDistanceTraveled)
         else:
             self.lifecycle += 1
 
