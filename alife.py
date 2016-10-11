@@ -132,6 +132,7 @@ class Agent:
         self.lifecycle = 0
         self.lifeOver = False
         self.eatenTokens = 0
+        self.wheelDistanceTraveled = 0
         self.env = env
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0, 0.0]
@@ -169,6 +170,7 @@ class Agent:
         motor_output = np.clip(self.cycle_nnet(), -2, 2)
         left_act = motor_output[0]
         right_act = motor_output[1]
+        self.wheelDistanceTraveled += abs(left_act) + abs(right_act)
 
         if abs(left_act - right_act) < .0001:
             self.location = [self.location[0] + left_act * sin(radians(self.orientation)), self.location[1] + right_act * cos(radians(self.orientation))]
