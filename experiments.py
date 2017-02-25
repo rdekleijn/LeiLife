@@ -53,9 +53,10 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
 
             fitness = [o.fitness for o in deadagents]
             eatentokens = [o.eatenTokens for o in deadagents]
+            timecenter = [o.steps_in_center for o in deadagents]
             disttrav = [o.wheelDistanceTraveled for o in deadagents]
             time_elapsed = time.time() - start
-            exp.write_log(condition, current_generation, fitness, eatentokens, disttrav, time_elapsed)
+            exp.write_log(condition, current_generation, fitness, eatentokens, disttrav, time_elapsed, timecenter)
             newagents = []
             for agent in sortedagents[0:20]:
                 for i in range(5):

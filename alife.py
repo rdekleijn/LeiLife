@@ -54,7 +54,7 @@ class Experiment:
         f.write(output)
         f.close()
 
-    def write_log(self, condition, current_generation, fitness, eatentokens, disttrav, time_elapsed, filename=None):
+    def write_log(self, condition, current_generation, fitness, eatentokens, disttrav, time_elapsed, timecenter, filename=None):
         if filename is None:
             filename = self.logfile
         filename = filename + '.txt'
@@ -62,6 +62,7 @@ class Experiment:
             "-- Mean fitness:", '{0:.4f}'.format(np.mean(fitness)), \
             "-- Mean tokens eaten:", '{0:.4f}'.format(np.mean(eatentokens)), \
             '-- Mean distance traveled:', '{0:.4f}'.format(np.mean(disttrav)), \
+            '-- Prop in center:', '{0:.4f}'.format(np.mean(timecenter)/600), \
             '-- Elapsed time:', str(int(time_elapsed)), 's'
         output = "Generation " + str(current_generation) + " Mean fitness: " + str(
             '{0:.4f}'.format(np.mean(fitness))) + "\n"
@@ -77,13 +78,16 @@ class Experiment:
 
 
 class Environment:
-    def __init__(self, experiment, iter=0, size=100):
+    def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0):
         self.experiment = experiment
         self.iter = iter
+        self.ITI = ITI
         self.size = size
+        self.last_stim_loc = 0
         self.agents = []
         self.deadagents = []
         self.foodtokens = []
+        self.last_food_eaten = LFE
 
     def check_boundary(self):
         for agent in self.agents:
@@ -96,15 +100,18 @@ class Environment:
         self.agents.append(Agent(env=self, location=location, orientation=orientation, nnet=nnet, weights=weights))
 
     def add_foodtoken(self, location):
-        self.foodtokens.append(FoodToken(location=location))
+        self.foodtokens.append(FoodToken(location=location, iter_created=self.iter))
 
     def check_eaten_foodtokens(self):
         for agent in self.agents:
             for foodtoken in self.foodtokens:
                 if abs(agent.location[0] - foodtoken.location[0]) < 3 and abs(agent.location[1] - foodtoken.location[1]) < 3:
                     self.foodtokens.remove(foodtoken)
-                    self.add_foodtoken(location=gen_rand_location(self.size))
+                    self.last_food_eaten = self.iter
                     agent.eatenTokens += 1
+                    agent.totalReward += max(0, 100 - (self.iter - foodtoken.iter_created))
+        if self.iter - self.last_food_eaten == self.ITI:
+            self.add_foodtoken(location=gen_rand_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
 
     def update(self):
         self.iter += 1
@@ -115,11 +122,12 @@ class Environment:
 
 
 class FoodToken:
-    def __init__(self, env=None, location=None, value=1):
+    def __init__(self, env=None, location=None, value=1, iter_created=None):
         self.location = location
         self.env = env
         self.isEaten = False
         self.value = value
+        self.iter_created = iter_created
 
 
 class Predator:
@@ -135,9 +143,11 @@ class Agent:
         self.lifecycle = 0
         self.lifeOver = False
         self.eatenTokens = 0
+        self.totalReward = 0
         self.wheelDistanceTraveled = 0
         self.fitness = None
         self.env = env
+        self.steps_in_center = 0
         self.visual_input = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.motor_output = [0.0, 0.0]
         if nnet is None:
@@ -166,21 +176,47 @@ class Agent:
 
     def move(self):
         self.motor_output = self.cycle_nnet()
-        #self.motor_output = np.clip(self.cycle_nnet(), -2, 2)
+        #print self.location
+        self.motor_output = np.clip(self.cycle_nnet(), -2, 2)
+        self.wheelDistanceTraveled += sqrt(np.square(self.motor_output[0]) + np.square(self.motor_output[1]))
         self.location = [self.location[0] + self.motor_output[0], self.location[1] + self.motor_output[1]]
+        if abs(self.env.size / 2 - self.location[0]) < 7 and abs(self.env.size / 2 - self.location[1]) < 7:
+            self.steps_in_center += 1
 
     def update(self):
         self.update_visual_field()
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
-            self.fitness = self.eatenTokens
+            self.fitness = self.eatenTokens + self.totalReward
         else:
             self.lifecycle += 1
+        # We need to punish time spent between stim appearance and touching it! We need ISI
 
+def gen_rand_location(size, stimulus=False, lastloc=0):
+    if stimulus is False:
+        return([random.uniform(0, size), random.uniform(0, size)])
+    else:
+        if lastloc == 1:
+            stimpos = int(random.sample([2,3,4], 1)[0])
+        elif lastloc == 2:
+            stimpos = int(random.sample([1,3,4], 1)[0])
+        elif lastloc == 3:
+            stimpos = int(random.sample([1,2,4], 1)[0])
+        elif lastloc == 4:
+            stimpos = int(random.sample([1,2,3], 1)[0])
+        elif lastloc == 0:
+            stimpos = int(random.sample([1,2,3,4], 1)[0])
 
-def gen_rand_location(size):
-    return([random.uniform(0, size), random.uniform(0, size)])
+        if stimpos == 1:
+            return([size*.25, size*.75])
+        elif stimpos == 2:
+            return([size*.75, size*.75])
+        elif stimpos == 3:
+            return([size*.25, size*.25])
+        elif stimpos == 4:
+            return([size*.75, size*.25])
+
 
 
 def gen_rand_orientation():
