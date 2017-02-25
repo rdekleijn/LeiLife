@@ -23,33 +23,33 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
 
 
 def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_cores=None, save_best_Ngens=20):
-    exp = Experiment(num_cores=4)
+    exp = Experiment(num_cores=7)
     exp.init_logfiles()
     for run in range(30): # what's this 30?
         if run%3 == 1:
             condition = 1
             hid_size = 4
-            num_units = 46
+            num_units = 30
         elif run%3 == 0:
             condition = 2
             hid_size = 8
-            num_units = 90
+            num_units = 58
         else:
             condition = 3
             hid_size = 16
-            num_units = 178
+            num_units = 114
         for current_generation in range(num_gens):
             start = time.time()
             if current_generation == 0:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 2), lifetime=lifetime) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(4, hid_size, 2), lifetime=lifetime) for agent in range(num_agents))
             else:
-                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(8, hid_size, 2), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
+                deadagents = Parallel(n_jobs=num_cores)(delayed(run_agent)(exp=exp, size=env_size, nnet=buildNetwork(4, hid_size, 2), lifetime=lifetime, weights=newagents[agent].nnet.params) for agent in range(num_agents))
             sortedagents = sorted(deadagents, key=lambda x: x.fitness, reverse=True)
 
             if current_generation%save_best_Ngens==0:
                 # now run the best agent again and save/animate the output:
                 best_agent = sortedagents[0] # should also save the agent!
-                run_agent(exp, size=50, nnet=best_agent.nnet, lifetime=600, weights=best_agent.nnet.params, verbose=True, fname="best_gen"+str(current_generation))
+                run_agent(exp, size=50, nnet=best_agent.nnet, lifetime=600, weights=best_agent.nnet.params, verbose=False, fname="best_gen"+str(current_generation))
 
             fitness = [o.fitness for o in deadagents]
             eatentokens = [o.eatenTokens for o in deadagents]

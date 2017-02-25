@@ -154,44 +154,27 @@ class Agent:
 
     def update_visual_field(self):
         for foodtoken in self.env.foodtokens:
-            dir, dist = calc_dir_and_dist(foodtoken.location[0] - self.location[0],
-                                          foodtoken.location[1] - self.location[1],
-                                          self.orientation)
-            prop_dist = dist / sqrt(2 * (self.env.size ** 2))
-            dir_reduced = dir / 45
-            self.visual_input = np.zeros(8)
-            self.visual_input[int(floor(dir_reduced)) % 8] = 1 - (dir_reduced - floor(dir_reduced))
-            if dir_reduced != int(dir_reduced):
-                self.visual_input[int(ceil(dir_reduced)) % 8] = dir_reduced - floor(dir_reduced)
-            self.visual_input = self.visual_input * (1 - prop_dist) + np.random.normal(0, .1, 8)
+            self.visual_input = [float((self.location[0] - (self.env.size / 2)) / (self.env.size / 2)),
+                                 float((self.location[1] - (self.env.size / 2)) / (self.env.size / 2)),
+                                 (foodtoken.location[0] - (self.env.size / 2)) / (self.env.size / 2),
+                                 (foodtoken.location[1] - (self.env.size / 2)) / (self.env.size / 2)] + np.random.normal(0, .1, 4)
+            #print self.visual_input
 
     def cycle_nnet(self):
         motor_output = self.nnet.activate(self.visual_input)
         return(motor_output)
 
     def move(self):
-        unitsAxisWidth = 0.2
-        self.motor_output = np.clip(self.cycle_nnet(), -2, 2)
-        left_act = self.motor_output[0]
-        right_act = self.motor_output[1]
-        self.wheelDistanceTraveled += abs(left_act) + abs(right_act)
-
-        if abs(left_act - right_act) < .0001:
-            self.location = [self.location[0] + left_act * sin(radians(self.orientation)), self.location[1] + right_act * cos(radians(self.orientation))]
-        else:
-            R = unitsAxisWidth * (left_act + right_act) / (2 * (right_act - left_act))
-            wd = (right_act - left_act) / unitsAxisWidth
-            self.location = [self.location[0] + R * cos(radians(wd + self.orientation)) - R * cos(radians(self.orientation)),
-                             self.location[1] - R * sin(radians(wd + self.orientation)) + R * sin(radians(self.orientation))]
-            self.orientation = (self.orientation + wd)%360
+        self.motor_output = self.cycle_nnet()
+        #self.motor_output = np.clip(self.cycle_nnet(), -2, 2)
+        self.location = [self.location[0] + self.motor_output[0], self.location[1] + self.motor_output[1]]
 
     def update(self):
         self.update_visual_field()
         self.move()
         if self.lifecycle > 600:
             self.lifeOver = True
-            self.fitness = self.eatenTokens - (distance_fitness_factor * self.wheelDistanceTraveled) - \
-                - (connection_fitness_factor * np.sum(abs(self.nnet.params)))
+            self.fitness = self.eatenTokens
         else:
             self.lifecycle += 1
 
