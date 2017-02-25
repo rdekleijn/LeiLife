@@ -163,6 +163,9 @@ class Agent:
         print('X location = ', self.location[0], '\n', 'Y location =', self.location[1])
 
     def update_visual_field(self):
+        self.visual_input = [float((self.location[0] - (self.env.size / 2)) / (self.env.size / 2)),
+                             float((self.location[1] - (self.env.size / 2)) / (self.env.size / 2)),
+                             0,0] + np.random.normal(0,.1, 4)
         for foodtoken in self.env.foodtokens:
             self.visual_input = [float((self.location[0] - (self.env.size / 2)) / (self.env.size / 2)),
                                  float((self.location[1] - (self.env.size / 2)) / (self.env.size / 2)),
