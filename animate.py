@@ -3,7 +3,7 @@ import matplotlib.animation as animation
 import numpy as np
 import pandas as pd
 
-env_size = 100
+env_size = 50
 
 fig = plt.figure()
 ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,

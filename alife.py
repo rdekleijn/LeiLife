@@ -52,8 +52,9 @@ class Experiment:
 
 
 class Environment:
-    def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0):
+    def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0, sequence=[]):
         self.experiment = experiment
+        self.sequence = sequence # if [], generate random stimlocs
         self.iter = iter
         self.ITI = ITI # time betwen food tokens?
         self.size = size
@@ -62,6 +63,11 @@ class Environment:
         self.deadagents = []
         self.foodtokens = []
         self.last_food_eaten = LFE
+        self.eatenTokens = 0 # use this to track sequence position
+        self.stimlocs = {1:[size*.2, size*.8], # upper left
+                         2:[size*.8, size*.8], # upper right
+                         3:[size*.2, size*.2], # lower left
+                         4:[size*.8, size*.2]} # lower right
 
     def check_boundary(self):
         for agent in self.agents:
@@ -82,10 +88,14 @@ class Environment:
                 if abs(agent.location[0] - foodtoken.location[0]) < 3 and abs(agent.location[1] - foodtoken.location[1]) < 3:
                     self.foodtokens.remove(foodtoken)
                     self.last_food_eaten = self.iter
-                    agent.eatenTokens += 1
+                    self.eatenTokens += 1 # track in environment
+                    agent.eatenTokens += 1 # track in agent (meh)
                     agent.totalReward += max(0, 100 - (self.iter - foodtoken.iter_created))
         if self.iter - self.last_food_eaten == self.ITI:
-            self.add_foodtoken(location=gen_rand_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
+            if self.sequence:
+                self.add_foodtoken(location=self.stimlocs[self.sequence[self.eatenTokens%len(self.sequence)]])
+            else:
+                self.add_foodtoken(location=self.gen_next_food_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
 
     def update(self):
         self.iter += 1
@@ -93,6 +103,23 @@ class Environment:
             agent.update()
         self.check_eaten_foodtokens()
         self.check_boundary()
+
+    def gen_next_food_location(self, size, stimulus=False, lastloc=0):
+        if stimulus is False:
+            return([random.uniform(0, size), random.uniform(0, size)])
+        else:
+            if lastloc == 1:
+                stimpos = int(random.sample([2,3,4], 1)[0])
+            elif lastloc == 2:
+                stimpos = int(random.sample([1,3,4], 1)[0])
+            elif lastloc == 3:
+                stimpos = int(random.sample([1,2,4], 1)[0])
+            elif lastloc == 4:
+                stimpos = int(random.sample([1,2,3], 1)[0])
+            elif lastloc == 0:
+                stimpos = int(random.sample([1,2,3,4], 1)[0])
+
+            return(self.stimlocs[stimpos])
 
 
 class FoodToken:
@@ -170,35 +197,12 @@ class Agent:
             self.lifecycle += 1
         # We need to punish time spent between stim appearance and touching it! We need ISI
 
-def gen_rand_location(size, stimulus=False, lastloc=0):
-    if stimulus is False:
-        return([random.uniform(0, size), random.uniform(0, size)])
-    else:
-        if lastloc == 1:
-            stimpos = int(random.sample([2,3,4], 1)[0])
-        elif lastloc == 2:
-            stimpos = int(random.sample([1,3,4], 1)[0])
-        elif lastloc == 3:
-            stimpos = int(random.sample([1,2,4], 1)[0])
-        elif lastloc == 4:
-            stimpos = int(random.sample([1,2,3], 1)[0])
-        elif lastloc == 0:
-            stimpos = int(random.sample([1,2,3,4], 1)[0])
-
-        if stimpos == 1:
-            return([size*.25, size*.75])
-        elif stimpos == 2:
-            return([size*.75, size*.75])
-        elif stimpos == 3:
-            return([size*.25, size*.25])
-        elif stimpos == 4:
-            return([size*.75, size*.25])
-
-
 
 def gen_rand_orientation():
     return(random.uniform(0,360))
 
+def gen_rand_position(max):
+    return([random.uniform(0, max), random.uniform(0, max)])
 
 def calc_dir_and_dist(dx, dy, orientation):
     rads = atan2(dy, dx)
@@ -208,10 +212,10 @@ def calc_dir_and_dist(dx, dy, orientation):
     return(degs, dist)
 
 
-def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=False, fname=""):
-    env = Environment(experiment=exp, size=size)
-    env.add_foodtoken(location=gen_rand_location(size))
-    env.add_agent(location=gen_rand_location(size), orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
+def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=False, fname="", sequence=[]):
+    env = Environment(experiment=exp, size=size, sequence=sequence)
+    env.add_foodtoken(location=env.gen_next_food_location(size, stimulus=True))
+    env.add_agent(location=[size/2.0, size/2.0], orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
     if verbose:
         ddat = {'agent_xpos':[],
                 'agent_ypos':[],
