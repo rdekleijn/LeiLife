@@ -49,7 +49,7 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600, env_size=50
             if current_generation%save_best_Ngens==0:
                 # now run the best agent again and save/animate the output:
                 best_agent = sortedagents[0] # should also save the agent!
-                run_agent(exp, size=50, nnet=best_agent.nnet, lifetime=600, weights=best_agent.nnet.params, verbose=False, fname="best_gen"+str(current_generation))
+                run_agent(exp, size=50, nnet=best_agent.nnet, lifetime=600, weights=best_agent.nnet.params, verbose=True, fname="best_gen"+str(current_generation))
 
             fitness = [o.fitness for o in deadagents]
             eatentokens = [o.eatenTokens for o in deadagents]

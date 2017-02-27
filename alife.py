@@ -1,43 +1,17 @@
 import random
 import csv
 import numpy as np
+import pandas as pd
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.utilities import one_to_n
 from math import atan2, degrees, radians, sin, cos, pi, floor, ceil, sqrt
 from datetime import datetime
+import animate
 
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 # fitness function parameters (must tweak in different tasks/environments)
 distance_fitness_factor = .0001
 connection_fitness_factor = 0 #.00001
-
-fig = plt.figure()
-ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
-                     xlim=(0, 50), ylim=(0, 50))
-ax.grid()
-x = np.arange(0, 50, 0.1)
-line, = ax.plot([], [], 'o-', lw=2)
-food, = ax.plot([], [], '*r', lw=3)
-time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
-energy_text = ax.text(0.02, 0.90, '', transform=ax.transAxes)
-
-def init_animation():
-    line.set_data([], [])
-    time_text.set_text('')
-    energy_text.set_text('')
-    return line, time_text, energy_text
-
-def animate(i):
-    global agent_xpos, agent_ypos, food_xpos, food_ypox, tokenCount
-    line.set_data(agent_xpos[i], agent_ypos[i])
-    #print agent_xpos[i], agent_ypos[i]
-    #plt.plot(food_xpos[i], food_ypos[i], marker='*', linestyle='')
-    food.set_data(food_xpos[i], food_ypos[i])
-    time_text.set_text('Tokens Eaten: %.0f' % tokenCount[i]) #
-    #energy_text.set_text('food_y = %.1f' % food_ypos[i]) # orientation? dist traveled?
-    return line, time_text, energy_text
 
 class Experiment:
     def __init__(self, num_cores = 1):
@@ -81,7 +55,7 @@ class Environment:
     def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0):
         self.experiment = experiment
         self.iter = iter
-        self.ITI = ITI
+        self.ITI = ITI # time betwen food tokens?
         self.size = size
         self.last_stim_loc = 0
         self.agents = []
@@ -239,35 +213,26 @@ def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=Fal
     env.add_foodtoken(location=gen_rand_location(size))
     env.add_agent(location=gen_rand_location(size), orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
     if verbose:
-        global agent_xpos, agent_ypos, food_xpos, food_ypos, tokenCount
-        agent_xpos = []
-        agent_ypos = []
-        food_xpos = []
-        food_ypos = [] #env.foodtokens[0].location
-        tokenCount = []
-        lines_to_write = []
+        ddat = {'agent_xpos':[],
+                'agent_ypos':[],
+                'food_xpos':[],
+                'food_ypos':[],
+                'tokenCount':[]}
     for iter in range(lifetime):
         env.update()
         if verbose:
-            agent_xpos.append(env.agents[0].location[0])
-            agent_ypos.append(env.agents[0].location[1])
-            food_xpos.append(env.foodtokens[0].location[0])
-            food_ypos.append(env.foodtokens[0].location[1])
-            tokenCount.append(env.agents[0].eatenTokens)
-            lines_to_write.append( env.agents[0].location + env.foodtokens[0].location + [env.agents[0].orientation] ) # env.agents[0].orientation too?
+            ddat['agent_xpos'].append(env.agents[0].location[0])
+            ddat['agent_ypos'].append(env.agents[0].location[1])
+            if not env.foodtokens: # ITI - no food now
+                ddat['food_xpos'].append(-1)
+                ddat['food_ypos'].append(-1)
+            else:
+                ddat['food_xpos'].append(env.foodtokens[0].location[0])
+                ddat['food_ypos'].append(env.foodtokens[0].location[1])
+            ddat['tokenCount'].append(env.agents[0].eatenTokens)
     if verbose:
-        dt = 1./60
-        interval = 1000 * dt #- (t1 - t0)
-        ani = animation.FuncAnimation(fig, animate, frames=600, interval=interval, blit=False, init_func=init_animation)
-        # To save as an mp4 requires ffmpeg or mencoder to be installed.
-        # The extra_args ensure that the x264 codec is used, so that
-        # the video can be embedded in html5.  You may need to adjust this:
-        # more info: http://matplotlib.sourceforge.net/api/animation_api.html
-        ani.save('output/'+fname+'_agent_run.mp4', fps=30, extra_args=['-vcodec', 'libx264', '-pix_fmt', 'yuv420p'])
-        #plt.show()
-        with open('output/'+fname+'_agent_run.csv', 'wb') as csvfile:
-            writer = csv.writer(csvfile) # delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL
-            writer.writerow(['agent_x','agent_y','food_x','food_y','orientation'])
-            writer.writerows(lines_to_write)
+        df = pd.DataFrame(ddat)
+        df.to_csv('output/'+fname+'_agent_run.csv')
+        animate.save_movie(fname, df, lifetime, size)
 
     return (env.agents[0]) # full agent
