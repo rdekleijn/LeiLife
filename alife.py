@@ -7,7 +7,8 @@ from pybrain.utilities import one_to_n
 from math import atan2, degrees, radians, sin, cos, pi, floor, ceil, sqrt
 from datetime import datetime
 import animate
-
+# from pybrain.structure import LSTMLayer, SigmoidLayer, LinearLayer
+# net = buildNetwork(5, 2, 10, hiddenclass=LSTMLayer, outclass=LinearLayer, recurrent=True, bias=True)
 
 # fitness function parameters (must tweak in different tasks/environments)
 distance_fitness_factor = .0001
@@ -93,7 +94,8 @@ class Environment:
                     agent.totalReward += max(0, 100 - (self.iter - foodtoken.iter_created))
         if self.iter - self.last_food_eaten == self.ITI:
             if self.sequence:
-                self.add_foodtoken(location=self.stimlocs[self.sequence[self.eatenTokens%len(self.sequence)]])
+                print "eaten: " + str(self.eatenTokens) + " "
+                self.add_foodtoken(location=self.stimlocs[self.sequence[(self.eatenTokens%len(self.sequence))]])
             else:
                 self.add_foodtoken(location=self.gen_next_food_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
 

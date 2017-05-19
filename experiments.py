@@ -21,12 +21,16 @@ def run_experiment(condition=1, num_agents=100, num_gens=250, lifetime=600, env_
             for i in range(5):
                 newagents.append(Agent(weights=agent.nnet.params + np.random.normal(0, .3, 144)))
 
+# penalty for distance traveled
+def custom_fitness(agent):
+    afit = agent.eatenTokens - agent.wheelDistanceTraveled*distance_fitness_factor
+    return afit
 
 def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600,
                          env_size=50, num_cores=None, save_best_Ngens=20, sequence=[]):
     exp = Experiment(num_cores=7)
     exp.init_logfiles()
-    for run in range(30): # what's this 30?
+    for run in range(30): # 3 conditions w 10 runs per condition
         if run%3 == 1:
             condition = 1
             hid_size = 4
@@ -53,7 +57,8 @@ def run_mult_experiments(num_agents=100, num_gens=250, lifetime=600,
                 run_agent(exp, size=env_size, nnet=best_agent.nnet, lifetime=lifetime,
                           weights=best_agent.nnet.params, verbose=True, fname="best_gen"+str(current_generation))
 
-            fitness = [o.fitness for o in deadagents]
+            #fitness = [o.fitness for o in deadagents]
+            fitness = [custom_fitness(o) for o in deadagents]
             eatentokens = [o.eatenTokens for o in deadagents]
             timecenter = [o.steps_in_center for o in deadagents]
             disttrav = [o.wheelDistanceTraveled for o in deadagents]
