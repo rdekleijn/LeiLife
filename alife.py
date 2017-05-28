@@ -94,7 +94,9 @@ class Environment:
                     agent.totalReward += max(0, 100 - (self.iter - foodtoken.iter_created))
         if self.iter - self.last_food_eaten == self.ITI:
             if self.sequence:
-                print "eaten: " + str(self.eatenTokens) + " "
+                # print "eaten: " + str(self.eatenTokens) + " "
+                # print self.sequence
+                # print self.stimlocs[self.sequence[(self.eatenTokens%len(self.sequence))]]
                 self.add_foodtoken(location=self.stimlocs[self.sequence[(self.eatenTokens%len(self.sequence))]])
             else:
                 self.add_foodtoken(location=self.gen_next_food_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
@@ -216,7 +218,8 @@ def calc_dir_and_dist(dx, dy, orientation):
 
 def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=False, fname="", sequence=[]):
     env = Environment(experiment=exp, size=size, sequence=sequence)
-    env.add_foodtoken(location=env.gen_next_food_location(size, stimulus=True))
+    # env.add_foodtoken(location=env.gen_next_food_location(size, stimulus=True))
+    env.add_foodtoken(location=env.stimlocs[1])
     env.add_agent(location=[size/2.0, size/2.0], orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
     if verbose:
         ddat = {'agent_xpos':[],
