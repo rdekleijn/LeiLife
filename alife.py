@@ -15,10 +15,11 @@ distance_fitness_factor = .0001
 connection_fitness_factor = 0 #.00001
 
 class Experiment:
-    def __init__(self, num_cores = 1):
+    def __init__(self, num_cores = 1, lifetime = 600):
         self.num_cores = num_cores
         self.starttime = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         self.logfile = 'output/' + self.starttime
+        self.lifetime = lifetime
 
     def init_logfiles(self, filename=None):
         if filename is None:
@@ -53,8 +54,9 @@ class Experiment:
 
 
 class Environment:
-    def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0, sequence=[]):
+    def __init__(self, experiment, iter=0, ITI=20, size=100, LFE=0, sequence=[], verbose=False):
         self.experiment = experiment
+        self.verbose = verbose
         self.sequence = sequence # if [], generate random stimlocs
         self.iter = iter
         self.ITI = ITI # time betwen food tokens?
@@ -81,11 +83,13 @@ class Environment:
         self.agents.append(Agent(env=self, location=location, orientation=orientation, nnet=nnet, weights=weights))
 
     def add_foodtoken(self, location):
+        # print 'food token added at ' + str(location)
         self.foodtokens.append(FoodToken(location=location, iter_created=self.iter))
 
     def check_eaten_foodtokens(self):
         for agent in self.agents:
             for foodtoken in self.foodtokens:
+                # print 'food token is at ' + str(foodtoken.location)
                 if abs(agent.location[0] - foodtoken.location[0]) < 3 and abs(agent.location[1] - foodtoken.location[1]) < 3:
                     self.foodtokens.remove(foodtoken)
                     self.last_food_eaten = self.iter
@@ -96,7 +100,6 @@ class Environment:
             if self.sequence:
                 # print "eaten: " + str(self.eatenTokens) + " "
                 # print self.sequence
-                # print self.stimlocs[self.sequence[(self.eatenTokens%len(self.sequence))]]
                 self.add_foodtoken(location=self.stimlocs[self.sequence[(self.eatenTokens%len(self.sequence))]])
             else:
                 self.add_foodtoken(location=self.gen_next_food_location(self.size, stimulus=True, lastloc=self.last_stim_loc))
@@ -194,7 +197,7 @@ class Agent:
     def update(self):
         self.update_visual_field()
         self.move()
-        if self.lifecycle > 600:
+        if self.lifecycle == self.env.experiment.lifetime-1:
             self.lifeOver = True
             self.fitness = self.eatenTokens + self.totalReward
         else:
@@ -217,7 +220,7 @@ def calc_dir_and_dist(dx, dy, orientation):
 
 
 def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=False, fname="", sequence=[]):
-    env = Environment(experiment=exp, size=size, sequence=sequence)
+    env = Environment(experiment=exp, size=size, sequence=sequence, verbose=verbose)
     # env.add_foodtoken(location=env.gen_next_food_location(size, stimulus=True))
     env.add_foodtoken(location=env.stimlocs[1])
     env.add_agent(location=[size/2.0, size/2.0], orientation=gen_rand_orientation(), nnet=nnet, weights=weights)
@@ -238,6 +241,8 @@ def run_agent(exp, size=None, nnet=None, lifetime=600, weights=None, verbose=Fal
             else:
                 ddat['food_xpos'].append(env.foodtokens[0].location[0])
                 ddat['food_ypos'].append(env.foodtokens[0].location[1])
+                # print env.foodtokens
+                # print env.foodtokens[0].location
             ddat['tokenCount'].append(env.agents[0].eatenTokens)
     if verbose:
         df = pd.DataFrame(ddat)
