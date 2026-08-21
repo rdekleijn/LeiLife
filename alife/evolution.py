@@ -32,7 +32,7 @@ def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, 
             weights = parent.nnet.params + np.random.normal(0, mutation_std, n_params)
             offspring.append(Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), weights=weights,
                                     lineage_id=family_id, signaling=signaling,
-                                    social_learning=social_learning))
+                                    social_learning=social_learning, parent_id=parent.agent_id))
     return offspring, sortedagents
 
 

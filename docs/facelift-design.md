@@ -296,6 +296,70 @@ Can proceed in parallel with Phases 1-3 rather than waiting on them.
   run/generation instead of hardcoded gen numbers — retires
   `animate_agent_run.R`.
 
+**Status: implemented**, scoped to `run_group_evolution` (the actively-
+developed experiment path; the older solo-agent `run_agent`/`run_evolution`
+baseline from Phase 0 is untouched). Concrete choices made:
+
+- **Config**: `alife/config.py`'s `ExperimentConfig` dataclass loads from
+  YAML (`ExperimentConfig.from_yaml`, rejecting unknown keys rather than
+  silently ignoring typos) and covers every `run_group_evolution` knob,
+  including `signaling`/`social_learning`/`kin_based_groups`. A new
+  `run_experiment.py config.yaml` CLI entry point runs one, writing the
+  resolved config plus the current git commit to
+  `output/<name>/config.yaml` first (`save_provenance`) so a run's output
+  directory is self-describing afterward. See `configs/example.yaml`.
+- **Seeding**: `run_group_evolution(seed=...)` reseeds `random`/`np.random`
+  once at the top (covers group formation and mutation, which happen in
+  the parent process) and additionally derives a distinct per-group-trial
+  seed (`seed + gen*1_000_000 + i`) passed into each parallel `run_group`
+  call, which reseeds again on entry. This makes a run reproducible
+  regardless of joblib's process/fork semantics, *given* `num_cores=1` --
+  real parallelism can still reorder floating-point summation between
+  runs. Tested directly (`test_run_group_evolution_seeded_run_is_reproducible`).
+- **Structured logging**: `alife/logbook.py`'s `GenerationLog` appends one
+  CSV row per agent per generation (`generation_log.csv`) -- agent_id,
+  parent_id, lineage_id, group_id, fitness and its components, signal/
+  plasticity stats where applicable. Used pandas + CSV rather than parquet
+  for now (no new binary-format dependency to reason about); swapping the
+  storage format later is a small, localized change if file size becomes
+  a real problem.
+- **Genealogy**: `Agent` gained a persistent, process-global `agent_id`
+  (via `agents._IdCounter`) and `parent_id`, distinct from the existing
+  per-generation `lineage_id` (which is just a same-generation family rank
+  that gets reused every generation, for grouping). This is what makes
+  real cross-generation ancestry reconstruction possible from the log --
+  see `analysis/plots.py`'s `build_lineage_table`/`ancestors_of`. A
+  checkpoint resume bumps the counter past the loaded population's max id
+  (`bump_agent_id_counter`) so a fresh process doesn't restart at 0 and
+  collide with ids already written to the log.
+- **Checkpointing**: `alife/checkpoint.py` pickles `(gen, agents,
+  random_state, np_random_state)`; `checkpoint_every` on
+  `run_group_evolution` saves periodically, `resume_from` loads one and
+  continues at `gen + 1` (restoring RNG state too, same best-effort-under-
+  parallelism caveat as seeding).
+- **Cross-group replay**: `save_all_groups_every` saves a verbose replay
+  (CSV + mp4) of *every* group in a generation, not just the single best
+  one `save_best_every` already saved -- both are **fresh** trials of that
+  generation's genomes for recording purposes, not literal replays of the
+  evaluation episode. `GroupRunRecorder` (`alife/viz.py`) now also records
+  each agent's `emitted_signal`, orientation, and (at CSV-export time)
+  distance/bearing to the *nearest* food token per tick -- the raw
+  ingredients `analysis/signal_analysis.py` needs.
+- **Analysis scripts**: `analysis/plots.py` (fitness-over-generations,
+  signal-usage-over-generations, lineage table/ancestry) works off
+  `generation_log.csv` — no re-simulation needed. `analysis/signal_analysis.py`
+  works off a saved verbose group-run CSV: `signal_food_correlation` (does
+  this agent's signal track nearest-food distance/bearing?) and
+  `signal_usage_entropy` (a simple histogram-based variety measure,
+  explicitly *not* claimed to be a rigorous mutual-information estimate)
+  per agent, and `compare_group_dialects` to summarize both across
+  multiple groups' saved CSVs — the concrete, checkable "different groups,
+  different conventions" signature the design doc asked for.
+- Retired `animate_agent_run.R` -- the matplotlib→mp4 pipeline (extended
+  in Phase 1 to `animate_group_run`) already covers this, and the R
+  script's hardcoded generation numbers and single-agent CSV shape were
+  already stale relative to the current group-run format.
+
 ## Suggested execution order
 
 **Phase 0 → Phase 1 → Phase 2 → (Phase 4 alongside) → Phase 3.**

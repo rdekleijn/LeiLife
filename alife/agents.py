@@ -5,6 +5,37 @@ import numpy as np
 from .geometry import calc_dir_and_dist
 from .nn import FeedForwardNet
 
+
+class _IdCounter:
+    """Process-global counter for Agent.agent_id. Safe across joblib
+    parallel workers because Agents are only ever constructed in the
+    parent process (see experiment.run_group_evolution) -- workers mutate
+    and return existing agents, they never construct new ones.
+
+    `ensure_above` lets a checkpoint resume (a fresh process, so this
+    counter would otherwise restart at 0) avoid colliding with agent_ids
+    already used by the loaded population -- see experiment.py's
+    resume_from handling.
+    """
+
+    def __init__(self):
+        self._next = 0
+
+    def next(self):
+        value = self._next
+        self._next += 1
+        return value
+
+    def ensure_above(self, value):
+        self._next = max(self._next, value + 1)
+
+
+_id_counter = _IdCounter()
+
+
+def bump_agent_id_counter(value):
+    _id_counter.ensure_above(value)
+
 # fitness function parameters (must tweak in different tasks/environments)
 DISTANCE_FITNESS_FACTOR = .0001
 CONNECTION_FITNESS_FACTOR = 0  # .00001
@@ -45,9 +76,15 @@ def _bearing_sectors(direction, prop_dist, weight=1.0):
 
 class Agent:
     def __init__(self, env=None, location=None, orientation=None, nnet=None, weights=None,
-                 lineage_id=None, group_id=None, signaling=False, social_learning=False):
+                 lineage_id=None, group_id=None, signaling=False, social_learning=False, parent_id=None):
         if social_learning and not signaling:
             raise ValueError("social_learning requires signaling=True (nothing to learn from otherwise)")
+        # agent_id/parent_id give a persistent, globally-unique identity
+        # (unlike lineage_id, which is just a same-generation family rank
+        # that gets reused every generation) -- lets a generation log
+        # reconstruct full cross-generation ancestry.
+        self.agent_id = _id_counter.next()
+        self.parent_id = parent_id
         self.location = location
         self.orientation = orientation
         self.lifecycle = 0
