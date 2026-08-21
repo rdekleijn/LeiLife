@@ -189,6 +189,44 @@ with group membership recorded per trial.
 **Deliverable**: a working genetic-only signaling baseline — a checkpoint
 worth evaluating on its own before adding social learning.
 
+**Status: implemented.** Concrete choices made:
+
+- `Agent` gains a `signaling` constructor flag (default `False`, fully
+  backward-compatible with Phase 0/1). When `True`: sensory input is
+  `visual_input` (8 food sectors) concatenated with a new `signal_input`
+  (8 sectors of nearby agents' broadcast strength, encoded the same way
+  as food direction/distance -- see `agents._bearing_sectors`, factored
+  out of the food-sensing code since signal-sensing needed the identical
+  shape); the net's 3rd output becomes `emitted_signal`, clipped to
+  `[0, 2]` (non-negative -- there's no obvious meaning for a "negative"
+  broadcast). `agents.net_dims(signaling)` is the single source of truth
+  for the resulting net shape (8→2 or 16→3), threaded through
+  `Agent.__init__`, `evolution.select_and_reproduce`, and
+  `experiment.run_group_evolution` so mutation always produces
+  correctly-shaped offspring.
+- Added `SIGNAL_FITNESS_FACTOR` (a metabolic cost on cumulative signal
+  emitted over the lifetime, same role/magnitude as
+  `DISTANCE_FITNESS_FACTOR`) to `Agent.update`'s fitness calculation, to
+  discourage evolving into constant broadcasting as the design doc noted.
+- `run_group`/`Environment` needed **no changes** for this: signaling is
+  entirely an `Agent`-level concern (each agent senses/emits based on its
+  own `.signaling` flag), so the shared-environment tick loop from Phase 1
+  already does the right thing.
+- **Known simplification, not yet resolved:** within one
+  `Environment.update()` tick, agents are still processed in a single
+  pass in `env.agents` order (unchanged from Phase 0/1) -- an agent later
+  in that order senses earlier agents' *this-tick* (just-recomputed)
+  signal and location, while sensing later agents' *previous-tick* state.
+  This makes perceived "freshness" of a neighbor's signal depend on list
+  position within a trial. It's judged benign for now because group
+  membership (and thus list order) is freshly (re)shuffled or
+  kin-sorted every generation by `form_groups`, so there's no fixed trait
+  for evolution to exploit -- but if a later phase needs precise
+  turn-taking or synchronous updates (e.g. a language-game-style
+  protocol), this will need revisiting with a proper sense/decide/act
+  split (compute every agent's next action from a frozen snapshot, then
+  apply all actions together).
+
 ### Phase 3 — Social learning (the "cultural" part) — design TBD
 
 This is the piece that makes the result cultural evolution rather than

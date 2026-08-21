@@ -43,3 +43,19 @@ def test_run_group_evolution_kin_based_smoke():
         n_hidden=4, top_n=2, offspring_per=2,
     )
     assert len(final_agents) == 4
+
+
+def test_run_group_evolution_with_signaling_smoke():
+    # gen 0 always triggers the save-best replay (0 % save_best_every == 0),
+    # so this also exercises run_group's verbose/animate path with
+    # signaling-shaped agents.
+    final_agents = run_group_evolution(
+        num_agents=4, num_gens=1, lifetime=605, env_size=40,
+        group_size=2, num_cores=1, save_best_every=999, n_hidden=4,
+        top_n=2, offspring_per=2, signaling=True,
+    )
+    assert len(final_agents) == 4
+    for agent in final_agents:
+        assert agent.signaling is True
+        assert agent.nnet.n_in == 16
+        assert agent.nnet.n_out == 3

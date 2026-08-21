@@ -2,26 +2,31 @@ import random
 
 import numpy as np
 
-from .agents import Agent
+from .agents import Agent, net_dims
 from .nn import FeedForwardNet
 
 
-def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, mutation_std=0.3):
+def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, mutation_std=0.3,
+                          signaling=False):
     """Truncation selection: take the `top_n` fittest agents (by `.fitness`)
     and produce `offspring_per` Gaussian-mutated offspring from each.
 
     Offspring inherit a `lineage_id` equal to their parent's rank
     (0..top_n-1) among this generation's selected parents, so all
     `offspring_per` children of one parent share a lineage_id -- see
-    `form_groups(kin_based=True)`.
+    `form_groups(kin_based=True)`. `signaling` must match what the
+    evaluated agents were built with (it determines the offspring net's
+    input/output size -- see `agents.net_dims`).
     """
     sortedagents = sorted(evaluated_agents, key=lambda a: a.fitness, reverse=True)
-    n_params = FeedForwardNet(8, n_hidden, 2).n_params
+    n_in, n_out = net_dims(signaling)
+    n_params = FeedForwardNet(n_in, n_hidden, n_out).n_params
     offspring = []
     for family_id, parent in enumerate(sortedagents[:top_n]):
         for _ in range(offspring_per):
             weights = parent.nnet.params + np.random.normal(0, mutation_std, n_params)
-            offspring.append(Agent(nnet=FeedForwardNet(8, n_hidden, 2), weights=weights, lineage_id=family_id))
+            offspring.append(Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), weights=weights,
+                                    lineage_id=family_id, signaling=signaling))
     return offspring, sortedagents
 
 

@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 from joblib import Parallel, delayed
 
-from .agents import Agent
+from .agents import Agent, net_dims
 from .environment import Environment
 from .evolution import select_and_reproduce, form_groups
 from .geometry import gen_rand_location, gen_rand_orientation
@@ -117,9 +117,11 @@ def run_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_c
 
 def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None, verbose=False, fname=""):
     """Run a group of pre-built Agents together in one shared Environment
-    for `lifetime` ticks (Phase 1: agents coexist and compete for the same
-    food tokens, but don't yet sense each other -- Phase 2 adds an
-    inter-agent signal channel on top of this scaffolding).
+    for `lifetime` ticks. Agents coexist and compete for the same food
+    tokens; whether they also sense/emit signals is entirely determined by
+    each Agent's own `.signaling` flag (set at construction -- see
+    `agents.Agent` and `evolution.select_and_reproduce`), so this function
+    doesn't need to know about signaling itself.
 
     Each agent's env/location/orientation is (re)initialized here, so the
     same Agent objects can be reused across trials by callers. Returns the
@@ -152,20 +154,26 @@ def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None
 
 def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, group_size=5,
                          kin_based_groups=False, num_cores=None, save_best_every=20,
-                         n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3):
+                         n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3, signaling=False):
     """Same truncation-selection evolution as `run_evolution`, but each
     trial runs a shared-environment group of `group_size` agents rather
-    than one agent alone, so there's someone for a future communication
-    channel (Phase 2) to talk to.
+    than one agent alone, so there's someone for a communication channel
+    to talk to.
 
     `group_size=offspring_per` (both default to 5) by default, so that
     kin-based grouping (`kin_based_groups=True`) places exact sibling sets
     -- all offspring of one parent -- together each generation.
+
+    `signaling=True` gives agents an extra sensory channel (hearing nearby
+    agents' signals) and motor output (a broadcast signal strength) on top
+    of the base food-foraging net -- see `agents.net_dims`.
     """
     exp = Experiment(num_cores=4)
     exp.init_logfiles()
 
-    agents = [Agent(nnet=FeedForwardNet(8, n_hidden, 2), lineage_id=i) for i in range(num_agents)]
+    n_in, n_out = net_dims(signaling)
+    agents = [Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), lineage_id=i, signaling=signaling)
+              for i in range(num_agents)]
 
     for gen in range(num_gens):
         start = time.time()
@@ -182,11 +190,13 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
 
         offspring, sortedagents = select_and_reproduce(
             deadagents, n_hidden=n_hidden, top_n=top_n, offspring_per=offspring_per, mutation_std=mutation_std,
+            signaling=signaling,
         )
 
         if gen % save_best_every == 0:
             replay_group = [
-                Agent(nnet=FeedForwardNet(8, n_hidden, 2), weights=a.nnet.params, lineage_id=a.lineage_id)
+                Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), weights=a.nnet.params,
+                      lineage_id=a.lineage_id, signaling=signaling)
                 for a in sortedagents[:group_size]
             ]
             run_group(exp, size=env_size, agents=replay_group, lifetime=lifetime,
