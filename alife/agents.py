@@ -11,7 +11,8 @@ CONNECTION_FITNESS_FACTOR = 0  # .00001
 
 
 class Agent:
-    def __init__(self, env=None, location=None, orientation=None, nnet=None, weights=None):
+    def __init__(self, env=None, location=None, orientation=None, nnet=None, weights=None,
+                 lineage_id=None, group_id=None):
         self.location = location
         self.orientation = orientation
         self.lifecycle = 0
@@ -25,6 +26,13 @@ class Agent:
         self.nnet = nnet if nnet is not None else FeedForwardNet(8, 8, 2)
         if weights is not None:
             self.nnet.set_params(weights)
+        # lineage_id identifies siblings from the same reproduction event
+        # (see evolution.select_and_reproduce); group_id identifies which
+        # shared-environment trial an agent was run in (see
+        # evolution.form_groups / experiment.run_group). Both are metadata
+        # only -- they don't affect simulation dynamics (yet).
+        self.lineage_id = lineage_id
+        self.group_id = group_id
 
     def give_status(self):
         print('X location =', self.location[0], '\n', 'Y location =', self.location[1])

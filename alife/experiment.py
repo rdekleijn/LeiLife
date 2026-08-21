@@ -7,10 +7,10 @@ from joblib import Parallel, delayed
 
 from .agents import Agent
 from .environment import Environment
-from .evolution import select_and_reproduce
+from .evolution import select_and_reproduce, form_groups
 from .geometry import gen_rand_location, gen_rand_orientation
 from .nn import FeedForwardNet
-from .viz import RunRecorder, animate_run
+from .viz import RunRecorder, animate_run, GroupRunRecorder, animate_group_run
 
 # Preserves the original `run % 3` condition mapping from experiments.py
 # (an accident of the original loop order: run%3==1 -> condition 1, etc.)
@@ -24,6 +24,7 @@ CONDITIONS = {
 
 class Experiment:
     def __init__(self, num_cores=1):
+        os.makedirs('output', exist_ok=True)
         self.num_cores = num_cores
         self.starttime = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         self.logfile = 'output/' + self.starttime
@@ -112,3 +113,91 @@ def run_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_c
             disttrav = [o.wheelDistanceTraveled for o in deadagents]
             time_elapsed = time.time() - start
             exp.write_log(condition, gen, fitness, eatentokens, disttrav, time_elapsed)
+
+
+def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None, verbose=False, fname=""):
+    """Run a group of pre-built Agents together in one shared Environment
+    for `lifetime` ticks (Phase 1: agents coexist and compete for the same
+    food tokens, but don't yet sense each other -- Phase 2 adds an
+    inter-agent signal channel on top of this scaffolding).
+
+    Each agent's env/location/orientation is (re)initialized here, so the
+    same Agent objects can be reused across trials by callers. Returns the
+    same list of agents, each with fitness/eatenTokens/etc. filled in.
+    """
+    if num_foodtokens is None:
+        num_foodtokens = len(agents)
+    env = Environment(experiment=exp, size=size)
+    for _ in range(num_foodtokens):
+        env.add_foodtoken(location=gen_rand_location(size))
+    for agent in agents:
+        agent.env = env
+        agent.location = gen_rand_location(size)
+        agent.orientation = gen_rand_orientation()
+        env.add_agent(agent)
+
+    recorder = GroupRunRecorder() if verbose else None
+    for _ in range(lifetime):
+        env.update()
+        if recorder is not None:
+            recorder.record(env)
+
+    if recorder is not None:
+        os.makedirs('output', exist_ok=True)
+        animate_group_run(recorder, env_size=size, out_path='output/' + fname + '_group_run.mp4')
+        recorder.to_csv('output/' + fname + '_group_run.csv')
+
+    return env.agents
+
+
+def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, group_size=5,
+                         kin_based_groups=False, num_cores=None, save_best_every=20,
+                         n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3):
+    """Same truncation-selection evolution as `run_evolution`, but each
+    trial runs a shared-environment group of `group_size` agents rather
+    than one agent alone, so there's someone for a future communication
+    channel (Phase 2) to talk to.
+
+    `group_size=offspring_per` (both default to 5) by default, so that
+    kin-based grouping (`kin_based_groups=True`) places exact sibling sets
+    -- all offspring of one parent -- together each generation.
+    """
+    exp = Experiment(num_cores=4)
+    exp.init_logfiles()
+
+    agents = [Agent(nnet=FeedForwardNet(8, n_hidden, 2), lineage_id=i) for i in range(num_agents)]
+
+    for gen in range(num_gens):
+        start = time.time()
+        groups = form_groups(agents, group_size, kin_based=kin_based_groups)
+        for group_id, group in enumerate(groups):
+            for agent in group:
+                agent.group_id = group_id
+
+        results = Parallel(n_jobs=num_cores)(
+            delayed(run_group)(exp=exp, size=env_size, agents=group, lifetime=lifetime)
+            for group in groups
+        )
+        deadagents = [agent for group_result in results for agent in group_result]
+
+        offspring, sortedagents = select_and_reproduce(
+            deadagents, n_hidden=n_hidden, top_n=top_n, offspring_per=offspring_per, mutation_std=mutation_std,
+        )
+
+        if gen % save_best_every == 0:
+            replay_group = [
+                Agent(nnet=FeedForwardNet(8, n_hidden, 2), weights=a.nnet.params, lineage_id=a.lineage_id)
+                for a in sortedagents[:group_size]
+            ]
+            run_group(exp, size=env_size, agents=replay_group, lifetime=lifetime,
+                      verbose=True, fname="best_group_gen" + str(gen))
+
+        fitness = [a.fitness for a in deadagents]
+        eatentokens = [a.eatenTokens for a in deadagents]
+        disttrav = [a.wheelDistanceTraveled for a in deadagents]
+        time_elapsed = time.time() - start
+        exp.write_log("group", gen, fitness, eatentokens, disttrav, time_elapsed)
+
+        agents = offspring
+
+    return agents

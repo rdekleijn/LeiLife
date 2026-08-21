@@ -149,6 +149,31 @@ end-to-end on Python 3, no pybrain dependency, tests passing.
 **Deliverable**: N agents foraging concurrently in a shared environment,
 with group membership recorded per trial.
 
+**Status: implemented.** Concrete choices made:
+
+- `evolution.form_groups(agents, group_size, kin_based=...)` partitions a
+  generation's agents into shared-trial groups; `experiment.run_group(...)`
+  runs one such group together in a single `Environment` for `lifetime`
+  ticks (agents still only sense food, not each other -- that's Phase 2).
+  `experiment.run_group_evolution(...)` is the group-based counterpart to
+  `run_evolution`.
+- Each offspring gets a `lineage_id` equal to its parent's rank among that
+  generation's selected parents (`Agent.lineage_id`, set in
+  `select_and_reproduce`), so all of one parent's children share an id.
+  `form_groups(kin_based=True)` sorts by `lineage_id` before chunking, so
+  groups are exact sibling sets when `group_size` divides `offspring_per`
+  -- both default to 5 for that reason. The founding generation (gen 0)
+  has no shared parentage yet, so its agents keep index order instead.
+  `Agent.group_id` separately records which trial-group an agent ran in.
+- Food-token count in a shared trial defaults to one per agent
+  (`num_foodtokens=len(agents)` in `run_group`), keeping roughly the same
+  per-agent food availability as the old single-agent trials; it's an
+  explicit override if a scarcer/denser environment is wanted later.
+- Fixed a latent bug found while wiring this up: `Experiment.__init__`
+  wrote log files into `output/` without ever creating that directory --
+  previously masked because a verbose single-agent run always happened to
+  create it first. `Experiment.__init__` now creates it directly.
+
 ### Phase 2 — Evolved signaling channel
 
 - Extend the agent's motor output from `[left, right]` to
