@@ -1,6 +1,7 @@
 """Run a config-driven experiment.
 
     python run_experiment.py configs/example.yaml
+    python run_experiment.py configs/example.yaml --resume output/example/checkpoint.pkl
 
 Writes to output/<config.name>/: the resolved config + git commit
 (config.yaml, for provenance), a per-agent-per-generation log
@@ -19,9 +20,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                       formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('config', help='Path to a YAML experiment config')
+    parser.add_argument('--resume', default=None, metavar='CHECKPOINT_PATH',
+                         help="Resume from a checkpoint.pkl instead of starting at generation 0 "
+                              "(overrides the config's resume_from, if set)")
     args = parser.parse_args()
 
     config = ExperimentConfig.from_yaml(args.config)
+    resume_from = args.resume or config.resume_from
     output_dir = os.path.join('output', config.name)
     config.save_provenance(output_dir)
 
@@ -43,7 +48,7 @@ def main():
         social_learning=config.social_learning,
         seed=config.seed,
         checkpoint_every=config.checkpoint_every,
-        resume_from=config.resume_from,
+        resume_from=resume_from,
         output_dir=output_dir,
     )
 
