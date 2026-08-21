@@ -46,6 +46,7 @@ class Environment:
         # (Removing items from the list mid-iteration could skip a token two
         # agents reach in the same tick.)
         eaten = []
+        rewarded_agents = []
         for agent in self.agents:
             for foodtoken in self.foodtokens:
                 if foodtoken in eaten:
@@ -54,13 +55,17 @@ class Environment:
                         and abs(agent.location[1] - foodtoken.location[1]) < 3):
                     eaten.append(foodtoken)
                     agent.eatenTokens += 1
+                    rewarded_agents.append(agent)
         for foodtoken in eaten:
             self.foodtokens.remove(foodtoken)
             self.add_foodtoken(location=gen_rand_location(self.size))
+        return rewarded_agents
 
     def update(self):
         self.iter += 1
         for agent in self.agents:
             agent.update()
-        self.check_eaten_foodtokens()
+        rewarded_agents = self.check_eaten_foodtokens()
+        for agent in self.agents:
+            agent.observe_and_learn(rewarded_agents)
         self.check_boundary()

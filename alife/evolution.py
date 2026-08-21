@@ -7,7 +7,7 @@ from .nn import FeedForwardNet
 
 
 def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, mutation_std=0.3,
-                          signaling=False):
+                          signaling=False, social_learning=False):
     """Truncation selection: take the `top_n` fittest agents (by `.fitness`)
     and produce `offspring_per` Gaussian-mutated offspring from each.
 
@@ -17,6 +17,11 @@ def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, 
     `form_groups(kin_based=True)`. `signaling` must match what the
     evaluated agents were built with (it determines the offspring net's
     input/output size -- see `agents.net_dims`).
+
+    `social_learning` only controls whether offspring get the *capacity*
+    for social learning (evolved/heritable); their W_plastic itself always
+    starts blank (see Agent.__init__) -- what's actually learned is never
+    inherited, only the ability to learn is.
     """
     sortedagents = sorted(evaluated_agents, key=lambda a: a.fitness, reverse=True)
     n_in, n_out = net_dims(signaling)
@@ -26,7 +31,8 @@ def select_and_reproduce(evaluated_agents, n_hidden, top_n=20, offspring_per=5, 
         for _ in range(offspring_per):
             weights = parent.nnet.params + np.random.normal(0, mutation_std, n_params)
             offspring.append(Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), weights=weights,
-                                    lineage_id=family_id, signaling=signaling))
+                                    lineage_id=family_id, signaling=signaling,
+                                    social_learning=social_learning))
     return offspring, sortedagents
 
 

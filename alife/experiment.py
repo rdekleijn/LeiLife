@@ -154,7 +154,8 @@ def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None
 
 def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, group_size=5,
                          kin_based_groups=False, num_cores=None, save_best_every=20,
-                         n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3, signaling=False):
+                         n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3, signaling=False,
+                         social_learning=False):
     """Same truncation-selection evolution as `run_evolution`, but each
     trial runs a shared-environment group of `group_size` agents rather
     than one agent alone, so there's someone for a communication channel
@@ -167,12 +168,20 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
     `signaling=True` gives agents an extra sensory channel (hearing nearby
     agents' signals) and motor output (a broadcast signal strength) on top
     of the base food-foraging net -- see `agents.net_dims`.
+
+    `social_learning=True` (requires `signaling=True`) additionally gives
+    agents a within-lifetime, non-evolved learning mechanism: hearing a
+    neighbor's signal shortly before that neighbor eats nudges this
+    agent's own response toward imitating the neighbor's action (see
+    `Agent.observe_and_learn`). Unlike the evolved net, this learned state
+    is never inherited -- only the capacity to learn is.
     """
     exp = Experiment(num_cores=4)
     exp.init_logfiles()
 
     n_in, n_out = net_dims(signaling)
-    agents = [Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), lineage_id=i, signaling=signaling)
+    agents = [Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), lineage_id=i, signaling=signaling,
+                     social_learning=social_learning)
               for i in range(num_agents)]
 
     for gen in range(num_gens):
@@ -190,13 +199,13 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
 
         offspring, sortedagents = select_and_reproduce(
             deadagents, n_hidden=n_hidden, top_n=top_n, offspring_per=offspring_per, mutation_std=mutation_std,
-            signaling=signaling,
+            signaling=signaling, social_learning=social_learning,
         )
 
         if gen % save_best_every == 0:
             replay_group = [
                 Agent(nnet=FeedForwardNet(n_in, n_hidden, n_out), weights=a.nnet.params,
-                      lineage_id=a.lineage_id, signaling=signaling)
+                      lineage_id=a.lineage_id, signaling=signaling, social_learning=social_learning)
                 for a in sortedagents[:group_size]
             ]
             run_group(exp, size=env_size, agents=replay_group, lifetime=lifetime,

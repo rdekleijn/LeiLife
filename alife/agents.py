@@ -10,6 +10,11 @@ DISTANCE_FITNESS_FACTOR = .0001
 CONNECTION_FITNESS_FACTOR = 0  # .00001
 SIGNAL_FITNESS_FACTOR = .0001  # metabolic cost per unit of signal emitted
 
+# social-learning parameters (must tweak in different tasks/environments)
+SOCIAL_LEARNING_RATE = .05
+PLASTICITY_DECAY = .01  # per-tick forgetting of W_plastic, keeps it bounded
+SIGNAL_TRACE_DECAY = .7  # per-tick decay of signal_trace ("shortly after" window)
+
 N_FOOD_SECTORS = 8
 N_SIGNAL_SECTORS = 8
 N_MOTOR_OUTPUTS = 2  # left wheel, right wheel
@@ -40,7 +45,9 @@ def _bearing_sectors(direction, prop_dist, weight=1.0):
 
 class Agent:
     def __init__(self, env=None, location=None, orientation=None, nnet=None, weights=None,
-                 lineage_id=None, group_id=None, signaling=False):
+                 lineage_id=None, group_id=None, signaling=False, social_learning=False):
+        if social_learning and not signaling:
+            raise ValueError("social_learning requires signaling=True (nothing to learn from otherwise)")
         self.location = location
         self.orientation = orientation
         self.lifecycle = 0
@@ -62,6 +69,18 @@ class Agent:
         # pass; see docs/facelift-design.md Phase 2 notes).
         self.emitted_signal = 0.0
         self.signalEmitted = 0.0  # cumulative |signal| over the agent's lifetime, for fitness cost
+        # Social learning state (Phase 3). This is deliberately NOT part of
+        # the genome: it starts blank for every agent (even mutated
+        # offspring -- see evolution.select_and_reproduce) and is shaped
+        # only by what this individual agent hears and observes during its
+        # own lifetime, which is what makes it "cultural" rather than
+        # genetic. W_plastic (signal sector -> wheel bias) is trained by
+        # observe_and_learn(); signal_trace is a short decaying memory of
+        # recently-heard signal_input, so a reward shortly after hearing a
+        # signal still credits it (see observe_and_learn).
+        self.social_learning = social_learning
+        self.W_plastic = np.zeros((N_SIGNAL_SECTORS, N_MOTOR_OUTPUTS))
+        self.signal_trace = np.zeros(N_SIGNAL_SECTORS)
         if nnet is not None:
             self.nnet = nnet
         else:
@@ -105,6 +124,8 @@ class Agent:
             prop_dist = dist / sqrt(2 * (self.env.size ** 2))
             signal += _bearing_sectors(direction, prop_dist, weight=other.emitted_signal)
         self.signal_input = signal + np.random.normal(0, .1, N_SIGNAL_SECTORS)
+        if self.social_learning:
+            self.signal_trace = SIGNAL_TRACE_DECAY * self.signal_trace + self.signal_input
 
     def cycle_nnet(self):
         if self.signaling:
@@ -116,7 +137,10 @@ class Agent:
     def move(self):
         unitsAxisWidth = 0.2
         raw_output = self.cycle_nnet()
-        self.motor_output = np.clip(raw_output[:N_MOTOR_OUTPUTS], -2, 2)
+        wheel_output = np.array(raw_output[:N_MOTOR_OUTPUTS], dtype=float)
+        if self.social_learning:
+            wheel_output = wheel_output + self.signal_input @ self.W_plastic
+        self.motor_output = np.clip(wheel_output, -2, 2)
         if self.signaling:
             self.emitted_signal = float(np.clip(raw_output[N_MOTOR_OUTPUTS], 0, 2))
             self.signalEmitted += self.emitted_signal
@@ -138,6 +162,26 @@ class Agent:
                 self.location[1] - R * sin(radians(wd + self.orientation)) + R * sin(radians(self.orientation)),
             ]
             self.orientation = (self.orientation + wd) % 360
+
+    def observe_and_learn(self, rewarded_agents):
+        """Hebbian imitation-learning update, called once per tick by
+        Environment.update() after food-eating is resolved. `rewarded_agents`
+        are the agents (possibly including self) that just ate a token.
+
+        For each rewarded neighbor, nudges W_plastic to associate this
+        agent's recently-heard signal pattern (signal_trace) with that
+        neighbor's motor action -- i.e. "when I hear what I've been
+        hearing, do what they were just doing." W_plastic decays a little
+        every tick regardless, so an association that stops being useful
+        fades rather than accumulating forever.
+        """
+        if not self.social_learning:
+            return
+        self.W_plastic *= (1 - PLASTICITY_DECAY)
+        for other in rewarded_agents:
+            if other is self:
+                continue
+            self.W_plastic += SOCIAL_LEARNING_RATE * np.outer(self.signal_trace, other.motor_output)
 
     def update(self):
         self.update_visual_field()

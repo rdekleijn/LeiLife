@@ -227,29 +227,49 @@ worth evaluating on its own before adding social learning.
   split (compute every agent's next action from a frozen snapshot, then
   apply all actions together).
 
-### Phase 3 — Social learning (the "cultural" part) — design TBD
+### Phase 3 — Social learning (the "cultural" part)
 
 This is the piece that makes the result cultural evolution rather than
 ordinary genetic evolution of a signaling behavior: transmission needs a
 channel that is not the genome.
 
-Current best idea, to be revisited once Phase 2 is running:
+**Status: implemented.** The mechanism settled on:
 
-- Add a lifetime-plastic component to the agent — e.g. a small set of
-  Hebbian-updated weights layered on top of the evolved (fixed) net — that
-  shifts an agent's response to a signal based on locally observed
-  outcomes. For example: an agent that senses signal S from a neighbor
-  shortly before that neighbor eats food gets its S→heading association
-  nudged toward that neighbor's heading.
-- This decouples "what a signal means" from genotype: two genetically
-  similar agents raised in different groups could end up with different
-  signal-response mappings — a directly measurable cultural-vs-genetic
-  signature (e.g. cross-fostering an agent into a foreign group and
-  checking whether it adopts local conventions).
-
-Treat the exact learning rule as its own small design pass once Phase 2's
-baseline exists — this is the kind of mechanism worth iterating on
-empirically rather than finalizing up front.
+- `Agent` gains a `social_learning` flag (requires `signaling=True` --
+  enforced by raising `ValueError` otherwise, since there's nothing to
+  learn from without a signal channel). Two new pieces of per-agent state,
+  neither part of the genome:
+  - `W_plastic`, an 8x2 matrix (signal sector → wheel bias), added to the
+    evolved net's wheel outputs each tick (`move()`): `final_wheels =
+    evolved_wheels + signal_input @ W_plastic`.
+  - `signal_trace`, a short exponentially-decaying memory of recently
+    heard `signal_input` (decay `SIGNAL_TRACE_DECAY = .7`/tick, so a
+    reward "shortly after" hearing a signal, not just in the exact same
+    tick, still gets credited).
+- The learning rule itself (`Agent.observe_and_learn`, called by
+  `Environment.update()` once per tick, after food-eating is resolved):
+  Hebbian imitation. For every neighbor that just ate a token,
+  `W_plastic += SOCIAL_LEARNING_RATE * outer(signal_trace,
+  neighbor.motor_output)` -- "when I hear what I've been hearing, do what
+  they were just doing." `W_plastic` also decays a little every tick
+  (`PLASTICITY_DECAY = .01`) so an association that stops paying off
+  fades rather than accumulating forever.
+  `Environment.check_eaten_foodtokens` now returns the list of agents
+  that ate that tick, which is what drives this.
+- Critically, `W_plastic` always starts at zero for every agent,
+  including mutated offspring -- only the *capacity* for social learning
+  (the `social_learning` flag) is heritable via
+  `evolution.select_and_reproduce`; what gets learned is shaped entirely
+  by an individual's own lifetime experience. `tests/test_social_learning.py`
+  has a direct test of the resulting cultural-vs-genetic signature the
+  design doc asked for: two agents built from *identical* evolved weights,
+  dropped into different social contexts (a neighbor who succeeds by
+  turning right vs. one who succeeds by turning left), end up with
+  measurably different `W_plastic` despite sharing a genotype.
+- Reuses the Phase 2 known simplification (env.agents list order affects
+  perceived signal freshness within a tick) without changes -- the
+  learning rule doesn't add any new order-sensitivity beyond what
+  signal-sensing already had.
 
 ### Phase 4 — Experiment & analysis tooling
 
