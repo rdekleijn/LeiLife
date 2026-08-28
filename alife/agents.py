@@ -39,7 +39,17 @@ def bump_agent_id_counter(value):
 # fitness function parameters (must tweak in different tasks/environments)
 DISTANCE_FITNESS_FACTOR = .0001
 CONNECTION_FITNESS_FACTOR = 0  # .00001
-SIGNAL_FITNESS_FACTOR = .0001  # metabolic cost per unit of signal emitted
+# Metabolic cost per unit of signal emitted. .0001 (20x smaller than this)
+# was too weak in practice: against a fitness landscape dominated by
+# eaten-token count (worth 1.0 each), it cost well under a full token's
+# worth of fitness even at max signal for an entire lifetime, so
+# evolution had no real pressure against constant-max broadcasting -- see
+# the kin_grouping/mixed_grouping example run in examples/README.md,
+# where mean cumulative signal saturated at the hard ceiling in both
+# conditions by generation ~250. At .002, a lifetime of constant max
+# signal (2 * lifetime) costs a few tokens' worth of fitness -- enough to
+# actually compete with the reward for eating.
+SIGNAL_FITNESS_FACTOR = .002
 
 # social-learning parameters (must tweak in different tasks/environments)
 SOCIAL_LEARNING_RATE = .05
