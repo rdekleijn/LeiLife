@@ -34,6 +34,7 @@ class ExperimentConfig:
     seed: Optional[int] = None
     checkpoint_every: Optional[int] = None
     resume_from: Optional[str] = None
+    save_mp4: bool = True
 
     @classmethod
     def from_yaml(cls, path):

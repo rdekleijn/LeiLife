@@ -120,7 +120,7 @@ def run_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50, num_c
 
 
 def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None, verbose=False, fname="",
-              seed=None, output_dir='output'):
+              seed=None, output_dir='output', save_mp4=True):
     """Run a group of pre-built Agents together in one shared Environment
     for `lifetime` ticks. Agents coexist and compete for the same food
     tokens; whether they also sense/emit signals is entirely determined by
@@ -137,6 +137,14 @@ def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None
     process-based parallelism, where a worker's RNG state isn't a
     deterministic function of the parent process's (see
     run_group_evolution's `seed` docs).
+
+    `save_mp4=False` skips matplotlib's animation rendering (the CSV --
+    everything analysis/ actually reads -- is still written). This
+    matters: rendering is ~75x slower than the simulation itself
+    (benchmarked at ~9s vs ~0.1s for a 5-agent, lifetime=1000 trial), so
+    for save_all_groups_every batches or any run where you don't need to
+    watch the replay, this is the difference between the run taking
+    tens of minutes and multiple hours.
     """
     if seed is not None:
         random.seed(seed)
@@ -160,7 +168,8 @@ def run_group(exp=None, size=100, agents=None, lifetime=600, num_foodtokens=None
 
     if recorder is not None:
         os.makedirs(output_dir, exist_ok=True)
-        animate_group_run(recorder, env_size=size, out_path=os.path.join(output_dir, fname + '_group_run.mp4'))
+        if save_mp4:
+            animate_group_run(recorder, env_size=size, out_path=os.path.join(output_dir, fname + '_group_run.mp4'))
         recorder.to_csv(os.path.join(output_dir, fname + '_group_run.csv'))
 
     return env.agents
@@ -170,7 +179,8 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
                          kin_based_groups=False, num_cores=None, save_best_every=20,
                          n_hidden=8, top_n=20, offspring_per=5, mutation_std=0.3, signaling=False,
                          social_learning=False, seed=None, output_dir='output',
-                         checkpoint_every=None, resume_from=None, save_all_groups_every=None):
+                         checkpoint_every=None, resume_from=None, save_all_groups_every=None,
+                         save_mp4=True):
     """Same truncation-selection evolution as `run_evolution`, but each
     trial runs a shared-environment group of `group_size` agents rather
     than one agent alone, so there's someone for a communication channel
@@ -210,11 +220,19 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
     generation 0 (also restores RNG state -- see `checkpoint.load_checkpoint`).
 
     `save_all_groups_every`, if given, additionally saves a verbose replay
-    (CSV + mp4) of *every* group (not just the single best-fitness group
-    `save_best_every` already saves) every N generations -- fresh trials of
-    that generation's evolved genomes, not literal replays of the
-    evaluation episode (same caveat as `save_best_every`'s replay). Useful
-    for cross-group "dialect" comparison -- see analysis/signal_analysis.py.
+    (CSV + mp4, unless `save_mp4=False`) of *every* group (not just the
+    single best-fitness group `save_best_every` already saves) every N
+    generations -- fresh trials of that generation's evolved genomes, not
+    literal replays of the evaluation episode (same caveat as
+    `save_best_every`'s replay). Useful for cross-group "dialect"
+    comparison -- see analysis/signal_analysis.py.
+
+    `save_mp4=False` skips rendering every mp4 this run would otherwise
+    save (both `save_best_every` and `save_all_groups_every`), keeping
+    only the CSVs -- see `run_group`'s docs for why this matters: mp4
+    rendering is ~75x slower than the simulation itself, so
+    `save_all_groups_every` batches in particular can dominate total
+    runtime if this stays on.
     """
     if seed is not None:
         random.seed(seed)
@@ -263,12 +281,14 @@ def run_group_evolution(num_agents=100, num_gens=250, lifetime=600, env_size=50,
                 for a in sortedagents[:group_size]
             ]
             run_group(exp, size=env_size, agents=replay_group, lifetime=lifetime,
-                      verbose=True, fname="best_group_gen" + str(gen), output_dir=output_dir)
+                      verbose=True, fname="best_group_gen" + str(gen), output_dir=output_dir,
+                      save_mp4=save_mp4)
 
         if save_all_groups_every and gen % save_all_groups_every == 0:
             for gi, group in enumerate(groups):
                 run_group(exp, size=env_size, agents=group, lifetime=lifetime,
-                          verbose=True, fname=f"gen{gen}_group{gi}", output_dir=output_dir)
+                          verbose=True, fname=f"gen{gen}_group{gi}", output_dir=output_dir,
+                          save_mp4=save_mp4)
 
         fitness = [a.fitness for a in deadagents]
         eatentokens = [a.eatenTokens for a in deadagents]

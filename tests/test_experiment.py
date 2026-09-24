@@ -137,3 +137,37 @@ def test_run_group_evolution_save_all_groups_every(tmp_path):
     )
     csv_files = sorted(glob.glob(os.path.join(output_dir, 'gen0_group*_group_run.csv')))
     assert len(csv_files) == 2  # 4 agents / group_size 2 = 2 groups
+
+
+def test_run_group_verbose_save_mp4_false_skips_mp4_but_keeps_csv(tmp_path):
+    agents = [Agent(nnet=ConstantNet([0.0, 0.0])) for _ in range(3)]
+    output_dir = str(tmp_path / "run")
+
+    run_group(size=40, agents=agents, lifetime=5, verbose=True, fname="test",
+              output_dir=output_dir, save_mp4=False)
+
+    assert os.path.exists(os.path.join(output_dir, "test_group_run.csv"))
+    assert not os.path.exists(os.path.join(output_dir, "test_group_run.mp4"))
+
+
+def test_run_group_verbose_save_mp4_true_writes_both(tmp_path):
+    agents = [Agent(nnet=ConstantNet([0.0, 0.0])) for _ in range(3)]
+    output_dir = str(tmp_path / "run")
+
+    run_group(size=40, agents=agents, lifetime=5, verbose=True, fname="test", output_dir=output_dir)
+
+    assert os.path.exists(os.path.join(output_dir, "test_group_run.csv"))
+    assert os.path.exists(os.path.join(output_dir, "test_group_run.mp4"))
+
+
+def test_run_group_evolution_save_mp4_false_skips_all_mp4s(tmp_path):
+    output_dir = str(tmp_path / "run")
+    run_group_evolution(
+        num_agents=4, num_gens=1, lifetime=605, env_size=40, group_size=2,
+        num_cores=1, save_best_every=1, save_all_groups_every=1,
+        n_hidden=4, top_n=2, offspring_per=2, output_dir=output_dir, save_mp4=False,
+    )
+    csv_files = glob.glob(os.path.join(output_dir, '*_group_run.csv'))
+    mp4_files = glob.glob(os.path.join(output_dir, '*_group_run.mp4'))
+    assert len(csv_files) == 3  # 1 best-group + 2 all-groups
+    assert len(mp4_files) == 0

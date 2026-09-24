@@ -8,6 +8,7 @@ def test_defaults():
     assert config.name == "experiment"
     assert config.num_agents == 100
     assert config.signaling is False
+    assert config.save_mp4 is True
 
 
 def test_from_yaml_round_trip(tmp_path):

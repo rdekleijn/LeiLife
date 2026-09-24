@@ -50,6 +50,7 @@ def main():
         checkpoint_every=config.checkpoint_every,
         resume_from=resume_from,
         output_dir=output_dir,
+        save_mp4=config.save_mp4,
     )
 
 
