@@ -205,9 +205,12 @@ worth evaluating on its own before adding social learning.
   `experiment.run_group_evolution` so mutation always produces
   correctly-shaped offspring.
 - Added `SIGNAL_FITNESS_FACTOR` (a metabolic cost on cumulative signal
-  emitted over the lifetime, same role/magnitude as
-  `DISTANCE_FITNESS_FACTOR`) to `Agent.update`'s fitness calculation, to
+  emitted over the lifetime) to `Agent.update`'s fitness calculation, to
   discourage evolving into constant broadcasting as the design doc noted.
+  It started at the same magnitude as `DISTANCE_FITNESS_FACTOR` (.0001),
+  which turned out far too weak -- the first real experiment saturated at
+  constant max broadcast in both conditions -- so it was raised 20x to
+  .002 (see the comment in `agents.py`).
 - `run_group`/`Environment` needed **no changes** for this: signaling is
   entirely an `Agent`-level concern (each agent senses/emits based on its
   own `.signaling` flag), so the shared-environment tick loop from Phase 1

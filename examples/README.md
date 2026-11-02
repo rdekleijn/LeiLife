@@ -31,10 +31,20 @@ python run_experiment.py configs/mixed_grouping.yaml
 
 Each is 100 agents x 500 generations x lifetime 1000, with `signaling` and
 `social_learning` both on. On the machine this was built on (14 cores),
-steady-state throughput was about 2s/generation once joblib's worker pool
-warms up -- call it **15-20 minutes per run**. Your mileage will vary with
-core count; check `num_cores` in the config if you want to cap how many
-cores it uses (`null` means "use them all").
+the evolution itself runs at about 2-3s/generation once joblib's worker
+pool warms up (~25 minutes for 500 generations). **But the replay videos
+dominate runtime if you leave them on**: rendering an mp4 is ~75x slower
+than simulating the same trial, and `save_all_groups_every` renders every
+group, so with the shipped configs (`save_mp4` defaults to true) a run
+takes closer to **75-90 minutes**. Set `save_mp4: false` in the config to
+keep the CSVs (everything `analysis/` reads) and skip the videos, for
+~25 minutes per run. Your mileage will vary with core count; check
+`num_cores` in the config if you want to cap how many cores it uses
+(`null` means "use them all").
+
+To repeat the experiment across several seeds (videos off by default),
+see [`replicate_seeds.py`](replicate_seeds.py):
+`python examples/replicate_seeds.py 1 2 3`.
 
 Run them one after another, or in two terminals in parallel if you have
 the cores to spare. If you need to stop partway through, both configs
