@@ -1,0 +1,6 @@
+numpy
+matplotlib>=3.9
+joblib
+pytest
+pyyaml
+pandas>=2.2

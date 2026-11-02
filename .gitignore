@@ -1,12 +1,16 @@
 
-*.txt
+output/*.txt
 
 *.pyc
 
-*.csv
+output/*.csv
 
 *.history
 
 *.gif
 
-*.mp4
+output/*.mp4
+
+__pycache__/
+
+.pytest_cache/
